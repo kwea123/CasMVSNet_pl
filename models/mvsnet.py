@@ -4,31 +4,61 @@ import torch.nn.functional as F
 from .modules import *
 
 class FeatureNet(nn.Module):
+    """
+    output 3 levels of features using a FPN structure
+    """
     def __init__(self, norm_act=InPlaceABN):
         super(FeatureNet, self).__init__()
-        self.inplanes = 32
 
-        self.conv0 = ConvBnReLU(3, 8, 3, 1, 1, norm_act=norm_act)
-        self.conv1 = ConvBnReLU(8, 8, 3, 1, 1, norm_act=norm_act)
+        self.conv0 = nn.Sequential(
+                        ConvBnReLU(3, 8, 3, 1, 1, norm_act=norm_act),
+                        ConvBnReLU(8, 8, 3, 1, 1, norm_act=norm_act))
 
-        self.conv2 = ConvBnReLU(8, 16, 5, 2, 2, norm_act=norm_act)
-        self.conv3 = ConvBnReLU(16, 16, 3, 1, 1, norm_act=norm_act)
-        self.conv4 = ConvBnReLU(16, 16, 3, 1, 1, norm_act=norm_act)
+        self.conv1 = nn.Sequential(
+                        ConvBnReLU(8, 16, 5, 2, 2, norm_act=norm_act),
+                        ConvBnReLU(16, 16, 3, 1, 1, norm_act=norm_act),
+                        ConvBnReLU(16, 16, 3, 1, 1, norm_act=norm_act))
 
-        self.conv5 = ConvBnReLU(16, 32, 5, 2, 2, norm_act=norm_act)
-        self.conv6 = ConvBnReLU(32, 32, 3, 1, 1, norm_act=norm_act)
-        self.feature = nn.Conv2d(32, 32, 3, 1, 1)
+        self.conv2 = nn.Sequential( 
+                        ConvBnReLU(16, 32, 5, 2, 2, norm_act=norm_act),
+                        ConvBnReLU(32, 32, 3, 1, 1, norm_act=norm_act),
+                        ConvBnReLU(32, 32, 3, 1, 1, norm_act=norm_act))
+
+        self.toplayer = nn.Conv2d(32, 32, 1)
+        self.lat1 = nn.Conv2d(16, 32, 1)
+        self.lat0 = nn.Conv2d(8, 32, 1)
+
+        # to reduce channel size of the outputs from FPN
+        self.smooth1 = nn.Conv2d(32, 16, 3, padding=1)
+        self.smooth0 = nn.Conv2d(32, 8, 3, padding=1)
+
+    def _upsample_add(self, x, y):
+        return F.interpolate(x, scale_factor=2, 
+                             mode="bilinear", align_corners=True) + y
 
     def forward(self, x):
-        x = self.conv1(self.conv0(x))
-        x = self.conv4(self.conv3(self.conv2(x)))
-        x = self.feature(self.conv6(self.conv5(x)))
-        return x
+        # x: (B, 3, H, W)
+        conv0 = self.conv0(x) # (B, 8, H, W)
+        conv1 = self.conv1(conv0) # (B, 16, H//2, W//2)
+        conv2 = self.conv2(conv1) # (B, 32, H//4, W//4)
+        feat2 = self.toplayer(conv2) # (B, 32, H//4, W//4)
+        feat1 = self._upsample_add(feat2, self.lat1(conv1)) # (B, 32, H//2, W//2)
+        feat0 = self._upsample_add(feat1, self.lat0(conv0)) # (B, 32, H, W)
+
+        # reduce output channels
+        feat1 = self.smooth1(feat1) # (B, 16, H//2, W//2)
+        feat0 = self.smooth0(feat0) # (B, 8, H, W)
+
+        feats = {"level_0": feat0,
+                 "level_1": feat1,
+                 "level_2": feat2}
+
+        return feats
 
 class CostRegNet(nn.Module):
-    def __init__(self, norm_act=InPlaceABN):
+    def __init__(self, in_channels, norm_act=InPlaceABN):
         super(CostRegNet, self).__init__()
-        self.conv0 = ConvBnReLU3D(32, 8, norm_act=norm_act)
+        self.conv0 = ConvBnReLU3D(in_channels, 8, norm_act=norm_act)
 
         self.conv1 = ConvBnReLU3D(8, 16, stride=2, norm_act=norm_act)
         self.conv2 = ConvBnReLU3D(16, 16, norm_act=norm_act)
@@ -40,15 +70,18 @@ class CostRegNet(nn.Module):
         self.conv6 = ConvBnReLU3D(64, 64, norm_act=norm_act)
 
         self.conv7 = nn.Sequential(
-            nn.ConvTranspose3d(64, 32, kernel_size=3, padding=1, output_padding=1, stride=2, bias=False),
+            nn.ConvTranspose3d(64, 32, 3, padding=1, output_padding=1,
+                               stride=2, bias=False),
             norm_act(32))
 
         self.conv9 = nn.Sequential(
-            nn.ConvTranspose3d(32, 16, kernel_size=3, padding=1, output_padding=1, stride=2, bias=False),
+            nn.ConvTranspose3d(32, 16, 3, padding=1, output_padding=1,
+                               stride=2, bias=False),
             norm_act(16))
 
         self.conv11 = nn.Sequential(
-            nn.ConvTranspose3d(16, 8, kernel_size=3, padding=1, output_padding=1, stride=2, bias=False),
+            nn.ConvTranspose3d(16, 8, 3, padding=1, output_padding=1,
+                               stride=2, bias=False),
             norm_act(8))
 
         self.prob = nn.Conv3d(8, 1, 3, stride=1, padding=1)
@@ -67,39 +100,27 @@ class CostRegNet(nn.Module):
         x = self.prob(x)
         return x
 
-class RefineNet(nn.Module):
-    def __init__(self):
-        super(RefineNet, self).__init__()
-        self.conv1 = ConvBnReLU(4, 32)
-        self.conv2 = ConvBnReLU(32, 32)
-        self.conv3 = ConvBnReLU(32, 32)
-        self.res = ConvBnReLU(32, 1)
-
-    def forward(self, img, depth_init):
-        concat = torch.cat((img, depth_init), dim=1)
-        depth_residual = self.res(self.conv3(self.conv2(self.conv1(concat))))
-        depth_refined = depth_init + depth_residual
-        return depth_refined
-
-class MVSNet(nn.Module):
-    def __init__(self, norm_act=InPlaceABN):
-        super(MVSNet, self).__init__()
+class CascadeMVSNet(nn.Module):
+    def __init__(self, n_depths=[8, 32, 48],
+                       depth_interals_ratio=[1, 2, 4],
+                       norm_act=InPlaceABN):
+        super(CascadeMVSNet, self).__init__()
+        self.levels = 3 # 3 depth levels
+        self.n_depths = n_depths
+        self.depth_interals_ratio = depth_interals_ratio
         self.feature = FeatureNet(norm_act)
-        self.cost_regularization = CostRegNet(norm_act)
+        for l in range(self.levels):
+            setattr(self, f'cost_reg_{l}', CostRegNet(8*2**l, norm_act))
 
-    def forward(self, imgs, proj_mats, depth_values):
-        # imgs: (B, V, 3, H, W)
-        # proj_mats: (B, V, 3, 3)
-        # depth_values: (B, D)
-        B, V, _, H, W = imgs.shape
+    def predict_depth(self, feats, proj_mats, depth_values, cost_reg):
+        # feats: (B, V, F, H, W)
+        # proj_mats: (B, V, 4, 4)
+        # depth_values: (B, D, H, W)
+        # cost_reg: nn.Module of input (B, F, D, h, w) and output (B, 1, D, h, w)
+        B, V, _, H, W = feats.shape
         D = depth_values.shape[1]
 
         # step 1. feature extraction
-        # in: images; out: 32-channel feature maps
-        imgs = imgs.reshape(B*V, 3, H, W)
-        feats = self.feature(imgs) # (B*V, F, h, w)
-        del imgs
-        feats = feats.reshape(B, V, *feats.shape[1:]) # (B, V, F, h, w)
         ref_feats, src_feats = feats[:, 0], feats[:, 1:]
         ref_proj, src_projs = proj_mats[:, 0], proj_mats[:, 1:]
         src_feats = src_feats.permute(1, 0, 2, 3, 4) # (V-1, B, F, h, w)
@@ -121,7 +142,7 @@ class MVSNet(nn.Module):
         del volume_sq_sum, volume_sum
         
         # step 3. cost volume regularization
-        cost_reg = self.cost_regularization(volume_variance).squeeze(1)
+        cost_reg = cost_reg(volume_variance).squeeze(1)
         prob_volume = F.softmax(cost_reg, 1) # (B, D, h, w)
         depth = depth_regression(prob_volume, depth_values)
         
@@ -141,3 +162,41 @@ class MVSNet(nn.Module):
                                       depth_index.unsqueeze(1)).squeeze(1) # (B, h, w)
 
         return depth, confidence
+
+    def forward(self, imgs, proj_mats,
+                      init_depth_min, init_depth_interval):
+        # imgs: (B, V, 3, H, W)
+        # proj_mats: (B, V, 4, 4)x3
+        # init_depth_min, init_depth_interval: floats
+        B, V, _, H, W = imgs.shape
+        results = {}
+
+        imgs = imgs.reshape(B*V, 3, H, W)
+        feats = self.feature(imgs) # (B*V, 8, H, W), (B*V, 16, H//2, W//2), (B*V, 32, H//4, W//4)
+        for l in reversed(range(self.levels)): # (2, 1, 0)
+            feats_l = feats[f"level_{l}"] # (B*V, F, h, w)
+            feats_l = feats_l.view(B, V, *feats_l.shape[1:]) # (B, V, F, h, w)
+            proj_mats_l = proj_mats[f"level_{l}"] # (B, V, 3, 3)
+            if l == self.levels-1: # coarsest level
+                h, w = feats_l.shape[-2:]
+                depth_values = init_depth_min + \
+                               torch.arange(0,
+                                            init_depth_interval*self.n_depths[l],
+                                            init_depth_interval,
+                                            device=imgs.device,
+                                            dtype=imgs.dtype)
+                depth_values = depth_values.reshape(1, -1, 1, 1).repeat(B, 1, h, w)
+            else:
+                depth_l_1 = depth_l.detach() # the depth of previous level
+                depth_l_1 = F.interpolate(depth_l_1.unsqueeze(1),
+                                          scale_factor=2, mode='bilinear',
+                                          align_corners=True) # (B, 1, h, w)
+                depth_values = get_depth_values(depth_l_1,
+                                                self.n_depths[l],
+                                                self.depth_interals_ratio[l]*init_depth_interval)
+            depth_l, confidence_l = self.predict_depth(feats_l, proj_mats_l, depth_values,
+                                                       getattr(self, f'cost_reg_{l}'))
+            results[f"depth_{l}"] = depth_l
+            results[f"confidence_{l}"] = confidence_l
+
+        return results
