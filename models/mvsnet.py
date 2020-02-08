@@ -163,8 +163,7 @@ class CascadeMVSNet(nn.Module):
 
         return depth, confidence
 
-    def forward(self, imgs, proj_mats,
-                      init_depth_min, init_depth_interval):
+    def forward(self, imgs, proj_mats, init_depth_min, init_depth_interval):
         # imgs: (B, V, 3, H, W)
         # proj_mats: (B, V, 4, 4)x3
         # init_depth_min, init_depth_interval: floats
