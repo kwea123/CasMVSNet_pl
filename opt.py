@@ -8,10 +8,14 @@ def get_opts():
                         help='root directory of dtu dataset')
     parser.add_argument('--n_views', type=int, default=3,
                         help='number of views (including ref) to be used in training')
-    parser.add_argument('--n_depths', type=int, default=256,
-                        help='number of depths of cost volume')
-    parser.add_argument('--interval_scale', type=float, default=0.8,
-                        help='depth interval scale between each depth step (2.5mm)')
+    parser.add_argument('--levels', type=int, default=3, choices=[3],
+                        help='number of FPN levels (fixed to be 3!)')
+    parser.add_argument('--init_depth_interval', type=float, default=2.8,
+                        help='initial depth interval in mm')
+    parser.add_argument('--n_depths', nargs='+', type=int, default=[8,32,48],
+                        help='number of depths in each level')
+    parser.add_argument('--interval_ratios', nargs='+', type=float, default=[1.0,2.0,4.0],
+                        help='depth interval ratio to multiply in each level')
     parser.add_argument('--loss_type', type=str, default='sl1',
                         choices=['sl1'],
                         help='loss to use')
