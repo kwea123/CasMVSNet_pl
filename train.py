@@ -77,10 +77,11 @@ class MVSSystem(pl.LightningModule):
 
     def validation_step(self, batch, batch_nb):
         imgs, proj_mats, depths, masks, init_depth_min, depth_interval = batch
-        results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
-        loss = self.loss(results, depths, masks)
-        
+
         with torch.no_grad():
+            results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
+            loss = self.loss(results, depths, masks)
+        
             if batch_nb == 0:
                 img_ = self.unpreprocess(imgs[0,0]).cpu() # batch 0, ref image
                 depth_gt_ = visualize_depth(depths['level_0'][0])
@@ -90,9 +91,9 @@ class MVSSystem(pl.LightningModule):
                 self.logger.experiment.add_images('val/image_GT_pred_prob',
                                                   stack, self.global_step)
 
-            depth_pred = results['depth_0']
-            depth_gt = depths['level_0']
-            mask = masks['level_0']
+            depth_pred = results['depth_0'].cpu()
+            depth_gt = depths['level_0'].cpu()
+            mask = masks['level_0'].cpu()
 
             abs_err = abs_error(depth_pred, depth_gt, mask)
             acc_1mm = acc_threshold(depth_pred, depth_gt, mask, 1)
