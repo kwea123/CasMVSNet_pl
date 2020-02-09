@@ -39,12 +39,12 @@ class MVSSystem(pl.LightningModule):
 
         self.loss = loss_dict[hparams.loss_type](hparams.levels)
 
-    def forward(self, imgs, proj_mats, init_depth_min, init_depth_interval):
-        return self.model(imgs, proj_mats, init_depth_min, init_depth_interval)
+    def forward(self, imgs, proj_mats, init_depth_min, depth_interval):
+        return self.model(imgs, proj_mats, init_depth_min, depth_interval)
 
     def training_step(self, batch, batch_nb):
-        imgs, proj_mats, depths, masks, init_depth_min, init_depth_interval = batch
-        results = self.forward(imgs, proj_mats, init_depth_min, init_depth_interval)
+        imgs, proj_mats, depths, masks, init_depth_min, depth_interval = batch
+        results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
         loss = self.loss(results, depths, masks)
         
         with torch.no_grad():
@@ -76,8 +76,8 @@ class MVSSystem(pl.LightningModule):
                }
 
     def validation_step(self, batch, batch_nb):
-        imgs, proj_mats, depths, masks, init_depth_min, init_depth_interval = batch
-        results = self.forward(imgs, proj_mats, init_depth_min, init_depth_interval)
+        imgs, proj_mats, depths, masks, init_depth_min, depth_interval = batch
+        results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
         loss = self.loss(results, depths, masks)
         
         with torch.no_grad():
@@ -155,7 +155,7 @@ class MVSSystem(pl.LightningModule):
                                    split='train',
                                    n_views=self.hparams.n_views,
                                    levels=self.hparams.levels,
-                                   init_depth_interval=self.hparams.init_depth_interval)
+                                   depth_interval=self.hparams.depth_interval)
         if self.hparams.num_gpus > 1:
             sampler = DistributedSampler(train_dataset)
         else:
@@ -172,8 +172,8 @@ class MVSSystem(pl.LightningModule):
         val_dataset = DTUDataset(root_dir=self.hparams.root_dir,
                                  split='val',
                                  n_views=self.hparams.n_views,
-                                levels=self.hparams.levels,
-                                 init_depth_interval=self.hparams.init_depth_interval)
+                                 levels=self.hparams.levels,
+                                 depth_interval=self.hparams.depth_interval)
         if self.hparams.num_gpus > 1:
             sampler = DistributedSampler(val_dataset)
         else:

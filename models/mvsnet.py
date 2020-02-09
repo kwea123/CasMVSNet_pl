@@ -134,8 +134,13 @@ class CascadeMVSNet(nn.Module):
 
         for src_feat, src_proj in zip(src_feats, src_projs):
             warped_volume = homo_warp(src_feat, src_proj, ref_proj, depth_values)
-            volume_sum = volume_sum + warped_volume
-            volume_sq_sum = volume_sq_sum + warped_volume ** 2
+            if self.training:
+                volume_sum = volume_sum + warped_volume
+                volume_sq_sum = volume_sq_sum + warped_volume ** 2
+            else:
+                # TODO: this is only a temporal solution to save memory, better way?
+                volume_sum += warped_volume
+                volume_sq_sum += warped_volume.pow_(2) # the memory of warped_volume is modified
             del warped_volume
         # aggregate multiple feature volumes by variance
         volume_variance = volume_sq_sum.div_(V).sub_(volume_sum.div_(V).pow_(2))
@@ -163,10 +168,10 @@ class CascadeMVSNet(nn.Module):
 
         return depth, confidence
 
-    def forward(self, imgs, proj_mats, init_depth_min, init_depth_interval):
+    def forward(self, imgs, proj_mats, init_depth_min, depth_interval):
         # imgs: (B, V, 3, H, W)
-        # proj_mats: (B, V, self.levels, 4, 4)
-        # init_depth_min, init_depth_interval: (B,) assumed to be the same for all samples
+        # proj_mats: (B, V, self.levels, 4, 4) from fine to coarse
+        # init_depth_min, depth_interval: (B,) assumed to be the same for all samples
         B, V, _, H, W = imgs.shape
         results = {}
 
@@ -174,18 +179,19 @@ class CascadeMVSNet(nn.Module):
         feats = self.feature(imgs) # (B*V, 8, H, W), (B*V, 16, H//2, W//2), (B*V, 32, H//4, W//4)
         # TODO: any better way?
         init_depth_min = float(init_depth_min[0].cpu().numpy())
-        init_depth_interval = float(init_depth_interval[0].cpu().numpy())
+        depth_interval = float(depth_interval[0].cpu().numpy())
 
         for l in reversed(range(self.levels)): # (2, 1, 0)
             feats_l = feats[f"level_{l}"] # (B*V, F, h, w)
             feats_l = feats_l.view(B, V, *feats_l.shape[1:]) # (B, V, F, h, w)
             proj_mats_l = proj_mats[:, :, l] # (B, V, 4, 4)
+            depth_interval_l = depth_interval * self.interval_ratios[l]
             if l == self.levels-1: # coarsest level
                 h, w = feats_l.shape[-2:]
                 depth_values = init_depth_min + \
                                torch.arange(0,
-                                            init_depth_interval*self.n_depths[l],
-                                            init_depth_interval,
+                                            depth_interval_l*self.n_depths[l],
+                                            depth_interval_l,
                                             device=imgs.device,
                                             dtype=imgs.dtype)
                 depth_values = depth_values.reshape(1, -1, 1, 1).repeat(B, 1, h, w)
@@ -196,7 +202,7 @@ class CascadeMVSNet(nn.Module):
                                           align_corners=True) # (B, 1, h, w)
                 depth_values = get_depth_values(depth_l_1,
                                                 self.n_depths[l],
-                                                self.interval_ratios[l]*init_depth_interval)
+                                                depth_interval_l)
                 del depth_l_1
             depth_l, confidence_l = self.predict_depth(feats_l, proj_mats_l, depth_values,
                                                        getattr(self, f'cost_reg_{l}'))

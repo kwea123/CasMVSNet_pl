@@ -8,7 +8,7 @@ import torch
 from torchvision import transforms as T
 
 class DTUDataset(Dataset):
-    def __init__(self, root_dir, split, n_views=3, levels=3, init_depth_interval=2.8):
+    def __init__(self, root_dir, split, n_views=3, levels=3, depth_interval=2.8):
         self.root_dir = root_dir
         self.split = split
         assert self.split in ['train', 'val'], \
@@ -16,7 +16,7 @@ class DTUDataset(Dataset):
         self.build_metas()
         self.n_views = n_views
         self.levels = levels # FPN levels
-        self.init_depth_interval = init_depth_interval
+        self.depth_interval = depth_interval
         self.build_proj_mats()
         self.define_transforms()
 
@@ -149,4 +149,4 @@ class DTUDataset(Dataset):
         imgs = torch.stack(imgs) # (V, 3, H, W)
         proj_mats = torch.stack(proj_mats) # (V, self.levels, 4, 4) from fine to coarse
 
-        return imgs, proj_mats, depths, masks, depth_min, self.init_depth_interval
+        return imgs, proj_mats, depths, masks, depth_min, self.depth_interval
