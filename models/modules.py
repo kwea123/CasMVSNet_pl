@@ -37,10 +37,12 @@ def get_depth_values(current_depth, n_depths, depth_interval):
     return: (B, D, H, W)
     """
     depth_min = current_depth - n_depths/2 * depth_interval
-    depth_values = depth_min + \
-                   torch.arange(0, depth_interval*n_depths, depth_interval,
-                                device=current_depth.device,
-                                dtype=current_depth.dtype).reshape(1, -1, 1, 1)
+    depth_max = current_depth + n_depths/2 * depth_interval
+    depth_values = 1/depth_max + (1/depth_min-1/depth_max) * \
+                   1/(n_depths-1) * torch.arange(0, n_depths,
+                                                 device=current_depth.device,
+                                                 dtype=current_depth.dtype).reshape(1, -1, 1, 1)
+    depth_values = 1/depth_values
     return depth_values
 
 def homo_warp(src_feat, src_proj, ref_proj_inv, depth_values):
@@ -88,6 +90,7 @@ def depth_regression(p, depth_values):
     """
     p: probability volume (B, D, H, W)
     depth_values: discrete depth values (B, D, H, W) or (D)
+    inverse: depth_values is inverse depth or not
     """
     if depth_values.dim() <= 2:
         depth_values = depth_values.view(*depth_values.shape, 1, 1)

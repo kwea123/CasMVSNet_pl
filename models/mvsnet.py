@@ -188,23 +188,26 @@ class CascadeMVSNet(nn.Module):
             feats_l = feats_l.view(B, V, *feats_l.shape[1:]) # (B, V, F, h, w)
             proj_mats_l = proj_mats[:, :, l] # (B, V, 4, 4)
             depth_interval_l = depth_interval * self.interval_ratios[l]
+            D = self.n_depths[l]
             if l == self.levels-1: # coarsest level
                 h, w = feats_l.shape[-2:]
-                depth_values = init_depth_min + \
-                               torch.arange(0,
-                                            depth_interval_l*self.n_depths[l],
-                                            depth_interval_l,
-                                            device=imgs.device,
-                                            dtype=imgs.dtype)
+                init_depth_max = init_depth_min + (D-1) * depth_interval_l
+                # depth_values = init_depth_min + depth_interval_l * \
+                #                torch.arange(0, self.n_depths[l],
+                #                             device=imgs.device,
+                #                             dtype=imgs.dtype)
+                depth_values = 1/init_depth_max + (1/init_depth_min-1/init_depth_max) * \
+                               1/(D-1) * torch.arange(0.0, D,
+                                                      device=imgs.device,
+                                                      dtype=imgs.dtype)
+                depth_values = 1/depth_values
                 depth_values = depth_values.reshape(1, -1, 1, 1).repeat(B, 1, h, w)
             else:
                 depth_l_1 = depth_l.detach() # the depth of previous level
                 depth_l_1 = F.interpolate(depth_l_1.unsqueeze(1),
                                           scale_factor=2, mode='bilinear',
                                           align_corners=True) # (B, 1, h, w)
-                depth_values = get_depth_values(depth_l_1,
-                                                self.n_depths[l],
-                                                depth_interval_l)
+                depth_values = get_depth_values(depth_l_1, D, depth_interval_l)
                 del depth_l_1
             depth_l, confidence_l = self.predict_depth(feats_l, proj_mats_l, depth_values,
                                                        getattr(self, f'cost_reg_{l}'))

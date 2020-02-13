@@ -193,8 +193,8 @@ if __name__ == '__main__':
     system = MVSSystem(hparams)
     checkpoint_callback = ModelCheckpoint(filepath=os.path.join('ckpts', 
                                                    hparams.exp_name),
-                                          monitor='val/loss',
-                                          mode='min',
+                                          monitor='val/acc_2mm',
+                                          mode='max',
                                           save_top_k=5,)
 
     logger = TestTubeLogger(
