@@ -40,8 +40,8 @@ Note that the model consumes huge GPU memory, so the batch size is generally sma
 See [opt.py](opt.py) for all configurations.
 
 ## Example training log
-[!log1](assets/log1.png)
-[!log2](assets/log2.png)
+![log1](assets/log1.png)
+![log2](assets/log2.png)
 
 ## Metrics
 The metrics are collected on the DTU val set.
