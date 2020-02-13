@@ -190,10 +190,9 @@ class CascadeMVSNet(nn.Module):
             depth_interval_l = depth_interval * self.interval_ratios[l]
             if l == self.levels-1: # coarsest level
                 h, w = feats_l.shape[-2:]
-                depth_values = init_depth_min + \
-                               torch.arange(0,
-                                            depth_interval_l*self.n_depths[l],
-                                            depth_interval_l,
+
+                depth_values = init_depth_min + depth_interval_l * \
+                               torch.arange(0, self.n_depths[l],
                                             device=imgs.device,
                                             dtype=imgs.dtype)
                 depth_values = depth_values.reshape(1, -1, 1, 1).repeat(B, 1, h, w)
