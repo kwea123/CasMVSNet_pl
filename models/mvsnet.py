@@ -178,8 +178,10 @@ class CascadeMVSNet(nn.Module):
         imgs = imgs.reshape(B*V, 3, H, W)
         feats = self.feature(imgs) # (B*V, 8, H, W), (B*V, 16, H//2, W//2), (B*V, 32, H//4, W//4)
         # TODO: any better way?
-        init_depth_min = float(init_depth_min[0].cpu().numpy())
-        depth_interval = float(depth_interval[0].cpu().numpy())
+        if not isinstance(init_depth_min, float):
+            init_depth_min = float(init_depth_min[0].cpu().numpy())
+        if not isinstance(depth_interval, float):
+            depth_interval = float(depth_interval[0].cpu().numpy())
 
         for l in reversed(range(self.levels)): # (2, 1, 0)
             feats_l = feats[f"level_{l}"] # (B*V, F, h, w)
