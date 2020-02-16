@@ -51,7 +51,7 @@ The metrics are collected on the DTU val set.
 | Paper     |  1152x864  | N/A     | N/A     | 82.6%      | 88.8%      |
 | This repo |  640x512   | 4.524mm | 72.33%  | **84.35%** | **90.52%** |
 
-*Generally,larger resolution leads to better accuracy and lower error.
+*Generally,larger resolution leads to better accuracy and lower error. So the result of this repo might be improved if using larger resolution.
 
 ## Pretrained model and log
 Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases/tag/v1.0).
