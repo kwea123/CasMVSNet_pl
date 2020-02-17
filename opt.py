@@ -16,6 +16,8 @@ def get_opts():
                         help='number of depths in each level')
     parser.add_argument('--interval_ratios', nargs='+', type=float, default=[1.0,2.0,4.0],
                         help='depth interval ratio to multiply with --depth_interval in each level')
+    parser.add_argument('--num_groups', type=int, default=1, choices=[1, 2, 4, 8],
+                        help='number of groups in groupwise correlation, must be a divisor of 8')
     parser.add_argument('--loss_type', type=str, default='sl1',
                         choices=['sl1'],
                         help='loss to use')
