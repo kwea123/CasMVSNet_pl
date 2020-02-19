@@ -45,11 +45,10 @@ def get_depth_values(current_depth, n_depths, depth_interval):
     depth_values = 1/depth_values
     return depth_values
 
-def homo_warp(src_feat, src_proj, ref_proj_inv, depth_values):
+def homo_warp(src_feat, proj_mat, depth_values):
     """
     src_feat: (B, C, H, W)
-    src_proj: (B, 4, 4)
-    ref_proj_inv: (B, 4, 4)
+    proj_mat: (B, 3, 4) equal to "src_proj @ ref_proj_inv"
     depth_values: (B, D, H, W)
     out: (B, C, D, H, W)
     """
@@ -58,9 +57,8 @@ def homo_warp(src_feat, src_proj, ref_proj_inv, depth_values):
     device = src_feat.device
     dtype = src_feat.dtype
 
-    transform = src_proj @ ref_proj_inv
-    R = transform[:, :3, :3] # (B, 3, 3)
-    T = transform[:, :3, 3:] # (B, 3, 1)
+    R = proj_mat[:, :, :3] # (B, 3, 3)
+    T = proj_mat[:, :, 3:] # (B, 3, 1)
     # create grid from the ref frame
     ref_grid = create_meshgrid(H, W, normalized_coordinates=False) # (1, H, W, 2)
     ref_grid = ref_grid.to(device).to(dtype)
@@ -68,10 +66,9 @@ def homo_warp(src_feat, src_proj, ref_proj_inv, depth_values):
     ref_grid = ref_grid.reshape(1, 2, H*W) # (1, 2, H*W)
     ref_grid = ref_grid.expand(B, -1, -1) # (B, 2, H*W)
     ref_grid = torch.cat((ref_grid, torch.ones_like(ref_grid[:,:1])), 1) # (B, 3, H*W)
-    ref_grid_d = ref_grid.unsqueeze(2) * depth_values.view(B, 1, D, H*W) # (B, 3, D, H*W)
-    ref_grid_d = ref_grid_d.view(B, 3, D*H*W)
-    src_grid_d = R @ ref_grid_d + T # (B, 3, D*H*W)
-    del ref_grid_d, ref_grid, transform, R, T # release (GPU) memory
+    ref_grid_d = ref_grid.repeat(1, 1, D) # (B, 3, D*H*W)
+    src_grid_d = (R @ ref_grid_d) + T/depth_values.view(B, 1, D*H*W)
+    del ref_grid_d, ref_grid, proj_mat, R, T # release (GPU) memory
     src_grid = src_grid_d[:, :2] / src_grid_d[:, -1:] # divide by depth (B, 2, D*H*W)
     del src_grid_d
     src_grid[:, 0] = src_grid[:, 0]/((W - 1) / 2) - 1 # scale to -1~1

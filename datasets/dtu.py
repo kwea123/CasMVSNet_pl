@@ -142,11 +142,11 @@ class DTUDataset(Dataset):
             if i == 0:  # reference view
                 masks = self.read_mask(mask_filename)
                 depths = self.read_depth(depth_filename)
-                proj_mats += [torch.inverse(proj_mat_ls)]
+                ref_proj_inv = torch.inverse(proj_mat_ls)
             else:
-                proj_mats += [proj_mat_ls]
+                proj_mats += [proj_mat_ls @ ref_proj_inv]
 
         imgs = torch.stack(imgs) # (V, 3, H, W)
-        proj_mats = torch.stack(proj_mats) # (V, self.levels, 4, 4) from fine to coarse
+        proj_mats = torch.stack(proj_mats)[:,:,:3] # (V-1, self.levels, 3, 4) from fine to coarse
 
         return imgs, proj_mats, depths, masks, depth_min, self.depth_interval

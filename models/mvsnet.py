@@ -120,7 +120,7 @@ class CascadeMVSNet(nn.Module):
 
     def predict_depth(self, feats, proj_mats, depth_values, cost_reg):
         # feats: (B, V, C, H, W)
-        # proj_mats: (B, V, 4, 4)
+        # proj_mats: (B, V-1, 3, 4)
         # depth_values: (B, D, H, W)
         # cost_reg: nn.Module of input (B, C, D, h, w) and output (B, 1, D, h, w)
         B, V, C, H, W = feats.shape
@@ -128,9 +128,8 @@ class CascadeMVSNet(nn.Module):
 
         # step 1. feature extraction
         ref_feats, src_feats = feats[:, 0], feats[:, 1:]
-        ref_proj, src_projs = proj_mats[:, 0], proj_mats[:, 1:]
         src_feats = src_feats.permute(1, 0, 2, 3, 4) # (V-1, B, F, h, w)
-        src_projs = src_projs.permute(1, 0, 2, 3) # (V-1, B, 4, 4)
+        proj_mats = proj_mats.permute(1, 0, 2, 3) # (V-1, B, 3, 4)
 
         # step 2. differentiable homograph, build cost volume
         ref_volume = ref_feats.unsqueeze(2).repeat(1, 1, D, 1, 1) # (B, C, D, h, w)
@@ -140,11 +139,10 @@ class CascadeMVSNet(nn.Module):
             del ref_volume
         else:
             ref_volume = ref_volume.view(B, self.G, C//self.G, *ref_volume.shape[-3:])
-                                        # (B, G, C//G, D, h, w)
             volume_sum = 0
 
-        for src_feat, src_proj in zip(src_feats, src_projs):
-            warped_volume = homo_warp(src_feat, src_proj, ref_proj, depth_values)
+        for src_feat, proj_mat in zip(src_feats, proj_mats):
+            warped_volume = homo_warp(src_feat, proj_mat, depth_values)
             if self.G == 1:
                 if self.training:
                     volume_sum = volume_sum + warped_volume
@@ -189,7 +187,7 @@ class CascadeMVSNet(nn.Module):
 
     def forward(self, imgs, proj_mats, init_depth_min, depth_interval):
         # imgs: (B, V, 3, H, W)
-        # proj_mats: (B, V, self.levels, 4, 4) from fine to coarse
+        # proj_mats: (B, V-1, self.levels, 4, 4) from fine to coarse
         # init_depth_min, depth_interval: (B,) assumed to be the same for all samples
         B, V, _, H, W = imgs.shape
         results = {}
