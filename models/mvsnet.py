@@ -148,12 +148,11 @@ class CascadeMVSNet(nn.Module):
                     volume_sum = volume_sum + warped_volume
                     volume_sq_sum = volume_sq_sum + warped_volume ** 2
                 else:
-                    # TODO: this is only a temporal solution to save memory, better way?
                     volume_sum += warped_volume
                     volume_sq_sum += warped_volume.pow_(2) # the memory of warped_volume is modified
             else:
                 warped_volume = warped_volume.view(*ref_volume.shape)
-                volume_sum = volume_sum + (ref_volume * warped_volume).mean(2)
+                volume_sum = volume_sum + (ref_volume * warped_volume).mean(2) # (B, G, D, h, w)
             del warped_volume
         # aggregate multiple feature volumes by variance
         if self.G == 1:
@@ -165,7 +164,7 @@ class CascadeMVSNet(nn.Module):
         
         # step 3. cost volume regularization
         cost_reg = cost_reg(volume_variance).squeeze(1)
-        prob_volume = F.softmax(cost_reg, 1) # (B, D, h, w)
+        prob_volume = F.softmax(cost_reg, 1, dtype=src_feat.dtype) # (B, D, h, w)
         depth = depth_regression(prob_volume, depth_values)
         
         with torch.no_grad():
@@ -209,21 +208,16 @@ class CascadeMVSNet(nn.Module):
             if l == self.levels-1: # coarsest level
                 h, w = feats_l.shape[-2:]
                 init_depth_max = init_depth_min + (D-1) * depth_interval_l
-                # depth_values = init_depth_min + depth_interval_l * \
-                #                torch.arange(0, self.n_depths[l],
-                #                             device=imgs.device,
-                #                             dtype=imgs.dtype)
-                depth_values = 1/init_depth_max + (1/init_depth_min-1/init_depth_max) * \
-                               1/(D-1) * torch.arange(0.0, D,
-                                                      device=imgs.device,
-                                                      dtype=imgs.dtype)
-                depth_values = 1/depth_values
+                depth_values = init_depth_min + depth_interval_l * \
+                               torch.arange(0, self.n_depths[l],
+                                            device=feats_l.device,
+                                            dtype=feats_l.dtype)
                 depth_values = depth_values.reshape(1, -1, 1, 1).repeat(B, 1, h, w)
             else:
                 depth_l_1 = depth_l.detach() # the depth of previous level
                 depth_l_1 = F.interpolate(depth_l_1.unsqueeze(1),
                                           scale_factor=2, mode='bilinear',
-                                          align_corners=True) # (B, 1, h, w)
+                                          align_corners=True).to(depth_l.dtype) # (B, 1, h, w)
                 depth_values = get_depth_values(depth_l_1, D, depth_interval_l)
                 del depth_l_1
             depth_l, confidence_l = self.predict_depth(feats_l, proj_mats_l, depth_values,
