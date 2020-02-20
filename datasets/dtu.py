@@ -8,7 +8,7 @@ import torch
 from torchvision import transforms as T
 
 class DTUDataset(Dataset):
-    def __init__(self, root_dir, split, n_views=3, levels=3, depth_interval=2.8):
+    def __init__(self, root_dir, split, n_views=3, levels=3, depth_interval=2.65):
         self.root_dir = root_dir
         self.split = split
         assert self.split in ['train', 'val'], \

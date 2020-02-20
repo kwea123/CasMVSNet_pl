@@ -126,12 +126,10 @@ class CascadeMVSNet(nn.Module):
         B, V, C, H, W = feats.shape
         D = depth_values.shape[1]
 
-        # step 1. feature extraction
         ref_feats, src_feats = feats[:, 0], feats[:, 1:]
         src_feats = src_feats.permute(1, 0, 2, 3, 4) # (V-1, B, F, h, w)
         proj_mats = proj_mats.permute(1, 0, 2, 3) # (V-1, B, 3, 4)
 
-        # step 2. differentiable homograph, build cost volume
         ref_volume = ref_feats.unsqueeze(2).repeat(1, 1, D, 1, 1) # (B, C, D, h, w)
         if self.G == 1:
             volume_sum = ref_volume
@@ -162,7 +160,6 @@ class CascadeMVSNet(nn.Module):
             volume_variance = volume_sum.div_(V-1)
             del volume_sum, ref_volume
         
-        # step 3. cost volume regularization
         cost_reg = cost_reg(volume_variance).squeeze(1)
         prob_volume = F.softmax(cost_reg, 1, dtype=src_feat.dtype) # (B, D, h, w)
         depth = depth_regression(prob_volume, depth_values)
@@ -202,15 +199,15 @@ class CascadeMVSNet(nn.Module):
         for l in reversed(range(self.levels)): # (2, 1, 0)
             feats_l = feats[f"level_{l}"] # (B*V, C, h, w)
             feats_l = feats_l.view(B, V, *feats_l.shape[1:]) # (B, V, C, h, w)
-            proj_mats_l = proj_mats[:, :, l] # (B, V, 4, 4)
+            proj_mats_l = proj_mats[:, :, l] # (B, V-1, 4, 4)
             depth_interval_l = depth_interval * self.interval_ratios[l]
             D = self.n_depths[l]
             if l == self.levels-1: # coarsest level
                 h, w = feats_l.shape[-2:]
                 depth_values = init_depth_min + depth_interval_l * \
-                               torch.arange(0, self.n_depths[l],
-                                            device=imgs.device,
-                                            dtype=imgs.dtype)
+                               torch.arange(0, D,
+                                            device=feats_l.device,
+                                            dtype=feats_l.dtype)
                 depth_values = depth_values.reshape(1, -1, 1, 1).repeat(B, 1, h, w)
             else:
                 depth_l_1 = depth_l.detach() # the depth of previous level
