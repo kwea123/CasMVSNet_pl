@@ -75,30 +75,30 @@ class MVSSystem(pl.LightningModule):
                         'lr': get_learning_rate(self.optimizer)}
                }
 
+    @torch.no_grad()
     def validation_step(self, batch, batch_nb):
         imgs, proj_mats, depths, masks, init_depth_min, depth_interval = batch
 
-        with torch.no_grad():
-            results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
-            loss = self.loss(results, depths, masks)
-        
-            if batch_nb == 0:
-                img_ = self.unpreprocess(imgs[0,0]).cpu() # batch 0, ref image
-                depth_gt_ = visualize_depth(depths['level_0'][0])
-                depth_pred_ = visualize_depth(results['depth_0'][0]*masks['level_0'][0])
-                prob = visualize_prob(results['confidence_0'][0]*masks['level_0'][0])
-                stack = torch.stack([img_, depth_gt_, depth_pred_, prob]) # (4, 3, H, W)
-                self.logger.experiment.add_images('val/image_GT_pred_prob',
-                                                  stack, self.global_step)
+        results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
+        loss = self.loss(results, depths, masks)
+    
+        if batch_nb == 0:
+            img_ = self.unpreprocess(imgs[0,0]).cpu() # batch 0, ref image
+            depth_gt_ = visualize_depth(depths['level_0'][0])
+            depth_pred_ = visualize_depth(results['depth_0'][0]*masks['level_0'][0])
+            prob = visualize_prob(results['confidence_0'][0]*masks['level_0'][0])
+            stack = torch.stack([img_, depth_gt_, depth_pred_, prob]) # (4, 3, H, W)
+            self.logger.experiment.add_images('val/image_GT_pred_prob',
+                                                stack, self.global_step)
 
-            depth_pred = results['depth_0']
-            depth_gt = depths['level_0']
-            mask = masks['level_0']
+        depth_pred = results['depth_0']
+        depth_gt = depths['level_0']
+        mask = masks['level_0']
 
-            abs_err = abs_error(depth_pred, depth_gt, mask).sum()
-            acc_1mm = acc_threshold(depth_pred, depth_gt, mask, 1).sum()
-            acc_2mm = acc_threshold(depth_pred, depth_gt, mask, 2).sum()
-            acc_4mm = acc_threshold(depth_pred, depth_gt, mask, 4).sum()
+        abs_err = abs_error(depth_pred, depth_gt, mask).sum()
+        acc_1mm = acc_threshold(depth_pred, depth_gt, mask, 1).sum()
+        acc_2mm = acc_threshold(depth_pred, depth_gt, mask, 2).sum()
+        acc_4mm = acc_threshold(depth_pred, depth_gt, mask, 4).sum()
 
         return {'val_loss': loss,
                 'val_abs_err': abs_err,
@@ -134,6 +134,7 @@ class MVSSystem(pl.LightningModule):
 
         self.model = CascadeMVSNet(n_depths=self.hparams.n_depths,
                                    interval_ratios=self.hparams.interval_ratios,
+                                   num_groups=self.hparams.num_groups,
                                    norm_act=norm_act).cuda()
 
         # if num gpu is 1, print model structure and number of params
