@@ -14,7 +14,7 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
 
 ## Software
 
-* Python>=3.6 (installation via [anaconda](https://www.anaconda.com/distribution/) is recommended)
+* Python>=3.6.1 (installation via [anaconda](https://www.anaconda.com/distribution/) is recommended, use `conda create -n casmvsnet_pl python=3.6` to create a conda environment and activate it by `conda activate casmvsnet_pl`)
 * Python libraries
     * Install core requirements by `pip install -r requirements.txt`
     * Install [Inplace-ABN](https://github.com/mapillary/inplace_abn) by `pip install git+https://github.com/mapillary/inplace_abn.git@v1.0.11`
@@ -46,10 +46,12 @@ See [opt.py](opt.py) for all configurations.
 ## Metrics
 The metrics are collected on the DTU val set.
 
-|       | abs_err | 1mm acc | 2mm acc | 4mm acc |
-| :---: |   :---: |  :---: | :---: | :---: |
-| Paper | N/A     | N/A    | 82.6% | 88.8% |
-| This repo | 4.524mm | 72.33% | **84.35%** | **90.52%** |
+|           | resolution* | abs_err | 1mm acc | 2mm acc    | 4mm acc    |
+| :---:     |  :---:     | :---:   |  :---:  | :---:      | :---:      |
+| Paper     |  1152x864  | N/A     | N/A     | 82.6%      | 88.8%      |
+| This repo |  640x512   | 4.524mm | 72.33%  | **84.35%** | **90.52%** |
+
+*Generally,larger resolution leads to better accuracy and lower error. So the result of this repo might be improved if using larger resolution.
 
 ## Pretrained model and log
 Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases/tag/v1.0).
