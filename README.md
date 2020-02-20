@@ -5,6 +5,10 @@ Official implementation: [CasMVSNet](https://github.com/alibaba/cascade-stereo/t
 
 Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_pl)
 
+### Update
+
+Implement groupwise correlation in [Learning Inverse Depth Regression for Multi-View Stereowith Correlation Cost Volume](https://arxiv.org/abs/1912.11746). It achieves almost the same result as original variance-based cost volume, but with fewer parameters and consumes lower memory, so it is highly recommended to use. To activate, set `--num_groups 8` in training.
+
 # Installation
 
 ## Hardware
