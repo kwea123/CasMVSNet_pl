@@ -12,7 +12,6 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
 2.  Since MVS models consumes a lot of GPU memory, it is indispensable to do some code tricks to reduce GPU memory consumption. I tried the followings:
     *  Replace `BatchNorm+Relu` with [Inplace-ABN](https://github.com/mapillary/inplace_abn): Reduce the memory by ~15%!
     *  `del` the tensor when it is never accessed later: Only helps a little.
-    *  Find the code which doesn't require gradient (in this project it's `get_depth_values` and `homo_warp`) and add `@torch.no_grad()` decorator or `with torch.no_grad(): ...`: Reduce the memory by ~500MB and also increase the training speed a little.
 
 # Installation
 
