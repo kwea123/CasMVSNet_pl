@@ -16,6 +16,7 @@ class ConvBnReLU(nn.Module):
     def forward(self, x):
         return self.bn(self.conv(x))
 
+
 class ConvBnReLU3D(nn.Module):
     def __init__(self, in_channels, out_channels,
                  kernel_size=3, stride=1, pad=1,
@@ -27,6 +28,7 @@ class ConvBnReLU3D(nn.Module):
 
     def forward(self, x):
         return self.bn(self.conv(x))
+
 
 def get_depth_values(current_depth, n_depths, depth_interval):
     """
@@ -42,6 +44,7 @@ def get_depth_values(current_depth, n_depths, depth_interval):
                                 device=current_depth.device,
                                 dtype=current_depth.dtype).reshape(1, -1, 1, 1)
     return depth_values
+
 
 def homo_warp(src_feat, proj_mat, depth_values):
     """
@@ -81,6 +84,7 @@ def homo_warp(src_feat, proj_mat, depth_values):
     warped_src_feat = warped_src_feat.view(B, C, D, H, W)
 
     return warped_src_feat
+
 
 def depth_regression(p, depth_values):
     """

@@ -55,6 +55,7 @@ class FeatureNet(nn.Module):
 
         return feats
 
+
 class CostRegNet(nn.Module):
     def __init__(self, in_channels, norm_act=InPlaceABN):
         super(CostRegNet, self).__init__()
@@ -99,6 +100,7 @@ class CostRegNet(nn.Module):
         del conv0
         x = self.prob(x)
         return x
+
 
 class CascadeMVSNet(nn.Module):
     def __init__(self, n_depths=[8, 32, 48],
@@ -152,6 +154,7 @@ class CascadeMVSNet(nn.Module):
             else:
                 warped_volume = warped_volume.view(*ref_volume.shape)
                 volume_sum += (ref_volume * warped_volume).mean(2) # (B, G, D, h, w)
+
             del warped_volume, src_feat, proj_mat
         del src_feats, proj_mats
         # aggregate multiple feature volumes by variance
@@ -186,7 +189,7 @@ class CascadeMVSNet(nn.Module):
 
     def forward(self, imgs, proj_mats, init_depth_min, depth_interval):
         # imgs: (B, V, 3, H, W)
-        # proj_mats: (B, V-1, self.levels, 4, 4) from fine to coarse
+        # proj_mats: (B, V-1, self.levels, 3, 4) from fine to coarse
         # init_depth_min, depth_interval: (B,) assumed to be the same for all samples
         B, V, _, H, W = imgs.shape
         results = {}
@@ -194,7 +197,7 @@ class CascadeMVSNet(nn.Module):
         imgs = imgs.reshape(B*V, 3, H, W)
         feats = self.feature(imgs) # (B*V, 8, H, W), (B*V, 16, H//2, W//2), (B*V, 32, H//4, W//4)
         del imgs
-        # TODO: any better way?
+        
         if not isinstance(init_depth_min, float):
             init_depth_min = float(init_depth_min[0].item())
         if not isinstance(depth_interval, float):
@@ -203,7 +206,7 @@ class CascadeMVSNet(nn.Module):
         for l in reversed(range(self.levels)): # (2, 1, 0)
             feats_l = feats[f"level_{l}"] # (B*V, C, h, w)
             feats_l = feats_l.view(B, V, *feats_l.shape[1:]) # (B, V, C, h, w)
-            proj_mats_l = proj_mats[:, :, l] # (B, V-1, 4, 4)
+            proj_mats_l = proj_mats[:, :, l] # (B, V-1, 3, 4)
             depth_interval_l = depth_interval * self.interval_ratios[l]
             D = self.n_depths[l]
             with torch.no_grad():
