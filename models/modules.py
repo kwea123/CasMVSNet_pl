@@ -65,9 +65,9 @@ def homo_warp(src_feat, proj_mat, depth_values):
     ref_grid = ref_grid.expand(B, -1, -1) # (B, 2, H*W)
     ref_grid = torch.cat((ref_grid, torch.ones_like(ref_grid[:,:1])), 1) # (B, 3, H*W)
     ref_grid_d = ref_grid.repeat(1, 1, D) # (B, 3, D*H*W)
-    src_grid_d = (R @ ref_grid_d) + T/depth_values.view(B, 1, D*H*W)
+    src_grid_d = R @ ref_grid_d + T/depth_values.view(B, 1, D*H*W)
     src_grid_d = src_grid_d.to(dtype)
-    del ref_grid_d, ref_grid, proj_mat, R, T # release (GPU) memory
+    del ref_grid_d, ref_grid, proj_mat, R, T, depth_values # release (GPU) memory
     src_grid = src_grid_d[:, :2] / src_grid_d[:, -1:] # divide by depth (B, 2, D*H*W)
     del src_grid_d
     src_grid[:, 0] = src_grid[:, 0]/((W - 1) / 2) - 1 # scale to -1~1
