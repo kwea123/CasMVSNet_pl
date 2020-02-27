@@ -136,7 +136,6 @@ class CascadeMVSNet(nn.Module):
         if self.G == 1:
             volume_sum = ref_volume
             volume_sq_sum = ref_volume ** 2
-            del ref_volume
         else:
             ref_volume = ref_volume.view(B, self.G, C//self.G, *ref_volume.shape[-3:])
             volume_sum = 0
@@ -154,7 +153,10 @@ class CascadeMVSNet(nn.Module):
                     volume_sq_sum += warped_volume.pow_(2)
             else:
                 warped_volume = warped_volume.view(*ref_volume.shape)
-                volume_sum = volume_sum + warped_volume # (B, G, C//G, D, h, w)
+                if self.training:
+                    volume_sum = volume_sum + warped_volume # (B, G, C//G, D, h, w)
+                else:
+                    volume_sum += warped_volume
             del warped_volume, src_feat, proj_mat
         del src_feats, proj_mats
         # aggregate multiple feature volumes by variance

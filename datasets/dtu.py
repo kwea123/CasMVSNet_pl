@@ -8,11 +8,17 @@ import torch
 from torchvision import transforms as T
 
 class DTUDataset(Dataset):
-    def __init__(self, root_dir, split, n_views=3, levels=3, depth_interval=2.65):
+    def __init__(self, root_dir, split, n_views=3, levels=3, depth_interval=2.65,
+                 img_wh=None):
         self.root_dir = root_dir
         self.split = split
         assert self.split in ['train', 'val'], \
             'split must be either "train" or "val"!'
+        self.img_wh = img_wh
+        if img_wh is not None:
+            assert img_wh[0]%32==0 and img_wh[1]%32==0, \
+                'img_wh must both be multiples of 32!'
+            assert self.split == 'val', 'img_wh can only be specified in val mode!'
         self.build_metas()
         self.n_views = n_views
         self.levels = levels # FPN levels
@@ -40,19 +46,27 @@ class DTUDataset(Dataset):
     def build_proj_mats(self):
         proj_mats = []
         for vid in range(49): # total 49 view ids
-            proj_mat_filename = os.path.join(self.root_dir,
-                                             f'Cameras/train/{vid:08d}_cam.txt')
+            if self.img_wh is None:
+                proj_mat_filename = os.path.join(self.root_dir,
+                                                 f'Cameras/train/{vid:08d}_cam.txt')
+            else:
+                proj_mat_filename = os.path.join(self.root_dir,
+                                                 f'Cameras/{vid:08d}_cam.txt')
             intrinsics, extrinsics, depth_min = \
                 self.read_cam_file(proj_mat_filename)
+            if self.img_wh is not None: # resize the intrinsics to the coarsest level
+                intrinsics[0] *= self.img_wh[0]/1600/4
+                intrinsics[1] *= self.img_wh[1]/1200/4
 
             # multiply intrinsics and extrinsics to get projection matrix
             proj_mat_ls = []
             for l in reversed(range(self.levels)):
                 proj_mat_l = np.eye(4)
                 proj_mat_l[:3, :4] = intrinsics @ extrinsics[:3, :4]
-                intrinsics[:2] *= 2
+                intrinsics[:2] *= 2 # 1/4->1/2->1
                 proj_mat_ls += [torch.FloatTensor(proj_mat_l)]
-            proj_mat_ls = torch.stack(proj_mat_ls[::-1]) # (self.levels, 4, 4) from fine to coarse
+            # (self.levels, 4, 4) from fine to coarse
+            proj_mat_ls = torch.stack(proj_mat_ls[::-1])
             proj_mats += [(proj_mat_ls, depth_min)]
 
         self.proj_mats = proj_mats
@@ -72,13 +86,18 @@ class DTUDataset(Dataset):
 
     def read_depth(self, filename):
         depth = np.array(read_pfm(filename)[0], dtype=np.float32) # (1200, 1600)
-        depth = cv2.resize(depth, None, fx=0.5, fy=0.5,
-                           interpolation=cv2.INTER_NEAREST) # (800, 600)
-        depth_0 = depth[44:556, 80:720] # (640, 512)
+        if self.img_wh is None:
+            depth = cv2.resize(depth, None, fx=0.5, fy=0.5,
+                            interpolation=cv2.INTER_NEAREST) # (600, 800)
+            depth_0 = depth[44:556, 80:720] # (512, 640)
+        else:
+            depth_0 = cv2.resize(depth, self.img_wh,
+                                 interpolation=cv2.INTER_NEAREST)
         depth_1 = cv2.resize(depth_0, None, fx=0.5, fy=0.5,
-                             interpolation=cv2.INTER_NEAREST) # (320, 256)
+                             interpolation=cv2.INTER_NEAREST)
         depth_2 = cv2.resize(depth_1, None, fx=0.5, fy=0.5,
-                             interpolation=cv2.INTER_NEAREST) # (160, 128)
+                             interpolation=cv2.INTER_NEAREST)
+
         depths = {"level_0": torch.FloatTensor(depth_0),
                   "level_1": torch.FloatTensor(depth_1),
                   "level_2": torch.FloatTensor(depth_2)}
@@ -87,13 +106,17 @@ class DTUDataset(Dataset):
 
     def read_mask(self, filename):
         mask = cv2.imread(filename, 0) # (1200, 1600)
-        mask = cv2.resize(mask, None, fx=0.5, fy=0.5,
-                          interpolation=cv2.INTER_NEAREST) # (800, 600)
-        mask_0 = mask[44:556, 80:720] # (640, 512)
+        if self.img_wh is None:
+            mask = cv2.resize(mask, None, fx=0.5, fy=0.5,
+                            interpolation=cv2.INTER_NEAREST) # (600, 800)
+            mask_0 = mask[44:556, 80:720] # (512, 640)
+        else:
+            mask_0 = cv2.resize(mask, self.img_wh,
+                                interpolation=cv2.INTER_NEAREST)
         mask_1 = cv2.resize(mask_0, None, fx=0.5, fy=0.5,
-                            interpolation=cv2.INTER_NEAREST) # (320, 256)
+                            interpolation=cv2.INTER_NEAREST)
         mask_2 = cv2.resize(mask_1, None, fx=0.5, fy=0.5,
-                            interpolation=cv2.INTER_NEAREST) # (160, 128)
+                            interpolation=cv2.INTER_NEAREST)
 
         masks = {"level_0": torch.BoolTensor(mask_0),
                  "level_1": torch.BoolTensor(mask_1),
@@ -126,14 +149,20 @@ class DTUDataset(Dataset):
 
         for i, vid in enumerate(view_ids):
             # NOTE that the id in image file names is from 1 to 49 (not 0~48)
-            img_filename = os.path.join(self.root_dir,
+            if self.img_wh is None:
+                img_filename = os.path.join(self.root_dir,
                                 f'Rectified/{scan}_train/rect_{vid+1:03d}_{light_idx}_r5000.png')
+            else:
+                img_filename = os.path.join(self.root_dir,
+                                f'Rectified/{scan}/rect_{vid+1:03d}_{light_idx}_r5000.png')
             mask_filename = os.path.join(self.root_dir,
                                 f'Depths/{scan}/depth_visual_{vid:04d}.png')
             depth_filename = os.path.join(self.root_dir,
                                 f'Depths/{scan}/depth_map_{vid:04d}.pfm')
 
             img = Image.open(img_filename)
+            if self.img_wh is not None:
+                img = img.resize(self.img_wh, Image.BILINEAR)
             img = self.transform(img)
             imgs += [img]
 
