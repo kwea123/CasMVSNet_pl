@@ -59,9 +59,11 @@ The metrics are collected on the DTU val set.
 | :---:     |  :---:     | :---:   | :---:   |  :---:  | :---:      | :---:      | :---:   |
 | Paper     |  1152x864  | 5       | N/A     | N/A     | 82.6%      | 88.8%      | 5,345MB |
 | This repo |  640x512   | 3       | 4.524mm | 72.33%  | **84.35%** | **90.52%** | 2,609MB |
-| This repo |  1152x864  | 5       | N/A     | N/A     | N/A        | N/A        | **4,523MB** |
+| This repo (gwc**) |  1152x864  | 5       | N/A     | N/A     | N/A        | N/A        | **4,251MB** |
 
 *Generally, larger resolution and number of views lead to better accuracy and lower error. So the result of this repo might be improved if using larger resolution.
+
+**Gwc with `num_groups=8`, see update 2. This implementation aims at maintaining the concept of cascade cost volume, and build new operations to further increase the accuracy or to decrease inference time/GPU memory.
 
 ## Pretrained model and log
 Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases/tag/v1.0).
