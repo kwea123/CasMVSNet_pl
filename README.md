@@ -44,7 +44,7 @@ python train.py \
    --exp_name exp
 ```
 
-Note that the model consumes huge GPU memory, so the batch size is generally small. For reference, the above command requires 8483MB of GPU memory.
+Note that the model consumes huge GPU memory, so the batch size is generally small.
 
 See [opt.py](opt.py) for all configurations.
 
@@ -55,16 +55,16 @@ See [opt.py](opt.py) for all configurations.
 ## Metrics
 The metrics are collected on the DTU val set.
 
-|           | resolution*| n_views*| abs_err | 1mm acc | 2mm acc    | 4mm acc    | GPU mem |
+|           | resolution | n_views | abs_err | 1mm acc | 2mm acc    | 4mm acc    | GPU mem in GB <br> (train*/val) |
 | :---:     |  :---:     | :---:   | :---:   |  :---:  | :---:      | :---:      | :---:   |
-| Paper     |  1152x864  | 5       | N/A     | N/A     | 82.6%      | 88.8%      | 5,345MB |
-| This repo |  640x512   | 3       | 4.524mm | 72.33%  | **84.35%** | **90.52%** | 2,609MB |
-| This repo (gwc**) |  1152x864  | 5       | N/A     | N/A     | N/A        | N/A        | **4,251MB** |
+| Paper     |  1152x864  | 5       | N/A     | N/A     | 82.6%      | 88.8%      | N/A / 5.3 |
+| This repo <br> (same as paper) |  640x512   | 3       | 4.524mm | 72.33%  | 84.35%     | 90.52%     | 7.2 / 2.6 |
+| This repo <br> (gwc**) |  1152x864  | 5       | N/A     | N/A     | N/A        | N/A        | **6.5 / 4.2** |
 
-*Generally, larger resolution and number of views lead to better accuracy and lower error. So the result of this repo might be improved if using larger resolution.
+*Training memory is measured on `batch size=2` and `resolution=640x512`.
 
 **Gwc with `num_groups=8`, see update 2. This implementation aims at maintaining the concept of cascade cost volume, and build new operations to further increase the accuracy or to decrease inference time/GPU memory.
 
 ## Pretrained model and log
 Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases/tag/v1.0).
-The above metrics correspond to this training but the model is saved on the 10th epoch (least `val_loss` but not the best in other metrics).
+The above metrics of `This repo (original)` correspond to this training but the model is saved on the 10th epoch (least `val_loss` but not the best in other metrics).
