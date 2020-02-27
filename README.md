@@ -12,7 +12,7 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
 2.  Since MVS models consumes a lot of GPU memory, it is indispensable to do some code tricks to reduce GPU memory consumption. I tried the followings:
     *  Replace `BatchNorm+Relu` with [Inplace-ABN](https://github.com/mapillary/inplace_abn): Reduce the memory by ~15%!
     *  `del` the tensor when it is never accessed later: Only helps a little.
-    *  Use `a = a+b` instead of `a += b`: Reduce about 300MB (don't know the reason..)
+    *  Use `a = a+b` in training and `a += b` in testing: Reduce about 300MB (don't know the reason..)
 
 # Installation
 
