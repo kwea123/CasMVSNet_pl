@@ -144,17 +144,17 @@ class CascadeMVSNet(nn.Module):
 
         for src_feat, proj_mat in zip(src_feats, proj_mats):
             warped_volume = homo_warp(src_feat, proj_mat, depth_values)
+            warped_volume = warped_volume.to(ref_volume.dtype)
             if self.G == 1:
                 if self.training:
                     volume_sum = volume_sum + warped_volume
                     volume_sq_sum = volume_sq_sum + warped_volume ** 2
                 else:
                     volume_sum += warped_volume
-                    volume_sq_sum += warped_volume.pow_(2) # the memory of warped_volume is modified
+                    volume_sq_sum += warped_volume.pow_(2)
             else:
                 warped_volume = warped_volume.view(*ref_volume.shape)
-                volume_sum += (ref_volume * warped_volume).mean(2) # (B, G, D, h, w)
-
+                volume_sum = volume_sum + warped_volume # (B, G, C//G, D, h, w)
             del warped_volume, src_feat, proj_mat
         del src_feats, proj_mats
         # aggregate multiple feature volumes by variance
@@ -162,11 +162,11 @@ class CascadeMVSNet(nn.Module):
             volume_variance = volume_sq_sum.div_(V).sub_(volume_sum.div_(V).pow_(2))
             del volume_sq_sum, volume_sum
         else:
-            volume_variance = volume_sum.div_(V-1)
+            volume_variance = (volume_sum*ref_volume).mean(2).div_(V-1) # (B, G, D, h, w)
             del volume_sum, ref_volume
         
         cost_reg = cost_reg(volume_variance).squeeze(1)
-        prob_volume = F.softmax(cost_reg, 1, dtype=cost_reg.dtype) # (B, D, h, w)
+        prob_volume = F.softmax(cost_reg, 1) # (B, D, h, w)
         del cost_reg
         depth = depth_regression(prob_volume, depth_values)
         
@@ -196,7 +196,6 @@ class CascadeMVSNet(nn.Module):
 
         imgs = imgs.reshape(B*V, 3, H, W)
         feats = self.feature(imgs) # (B*V, 8, H, W), (B*V, 16, H//2, W//2), (B*V, 32, H//4, W//4)
-        del imgs
         
         if not isinstance(init_depth_min, float):
             init_depth_min = float(init_depth_min[0].item())
@@ -214,14 +213,14 @@ class CascadeMVSNet(nn.Module):
                     h, w = feats_l.shape[-2:]
                     depth_values = init_depth_min + depth_interval_l * \
                                    torch.arange(0, D,
-                                                device=feats_l.device,
-                                                dtype=feats_l.dtype)
+                                                device=imgs.device,
+                                                dtype=imgs.dtype)
                     depth_values = depth_values.reshape(1, -1, 1, 1).repeat(B, 1, h, w)
                 else:
                     depth_l_1 = depth_l # the depth of previous level
                     depth_l_1 = F.interpolate(depth_l_1.unsqueeze(1),
                                               scale_factor=2, mode='bilinear',
-                                              align_corners=True).to(depth_l.dtype) # (B, 1, h, w)
+                                              align_corners=True) # (B, 1, h, w)
                     depth_values = get_depth_values(depth_l_1, D, depth_interval_l)
                     del depth_l_1
             depth_l, confidence_l = self.predict_depth(feats_l, proj_mats_l, depth_values,

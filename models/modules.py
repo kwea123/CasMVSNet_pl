@@ -56,20 +56,18 @@ def homo_warp(src_feat, proj_mat, depth_values):
     B, C, H, W = src_feat.shape
     D = depth_values.shape[1]
     device = src_feat.device
-    dtype = src_feat.dtype
 
     R = proj_mat[:, :, :3] # (B, 3, 3)
     T = proj_mat[:, :, 3:] # (B, 3, 1)
     # create grid from the ref frame
-    ref_grid = create_meshgrid(H, W, normalized_coordinates=False) # (1, H, W, 2)
-    ref_grid = ref_grid.to(device).to(dtype)
+    ref_grid = create_meshgrid(H, W, normalized_coordinates=False,
+                               device=device) # (1, H, W, 2)
     ref_grid = ref_grid.permute(0, 3, 1, 2) # (1, 2, H, W)
     ref_grid = ref_grid.reshape(1, 2, H*W) # (1, 2, H*W)
     ref_grid = ref_grid.expand(B, -1, -1) # (B, 2, H*W)
     ref_grid = torch.cat((ref_grid, torch.ones_like(ref_grid[:,:1])), 1) # (B, 3, H*W)
     ref_grid_d = ref_grid.repeat(1, 1, D) # (B, 3, D*H*W)
     src_grid_d = R @ ref_grid_d + T/depth_values.view(B, 1, D*H*W)
-    src_grid_d = src_grid_d.to(dtype)
     del ref_grid_d, ref_grid, proj_mat, R, T, depth_values # release (GPU) memory
     src_grid = src_grid_d[:, :2] / src_grid_d[:, -1:] # divide by depth (B, 2, D*H*W)
     del src_grid_d
@@ -80,7 +78,7 @@ def homo_warp(src_feat, proj_mat, depth_values):
 
     warped_src_feat = F.grid_sample(src_feat, src_grid,
                                     mode='bilinear', padding_mode='zeros',
-                                    align_corners=True).to(dtype) # (B, C, D, H*W)
+                                    align_corners=True) # (B, C, D, H*W)
     warped_src_feat = warped_src_feat.view(B, C, D, H, W)
 
     return warped_src_feat
