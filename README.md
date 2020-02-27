@@ -55,12 +55,12 @@ See [opt.py](opt.py) for all configurations.
 ## Metrics
 The metrics are collected on the DTU val set.
 
-|           | resolution* | abs_err | 1mm acc | 2mm acc    | 4mm acc    |
-| :---:     |  :---:     | :---:   |  :---:  | :---:      | :---:      |
-| Paper     |  1152x864  | N/A     | N/A     | 82.6%      | 88.8%      |
-| This repo |  640x512   | 4.524mm | 72.33%  | **84.35%** | **90.52%** |
+|           | resolution*| n_views*| abs_err | 1mm acc | 2mm acc    | 4mm acc    | GPU mem |
+| :---:     |  :---:     | :---:   | :---:   |  :---:  | :---:      | :---:      | :---:   |
+| Paper     |  1152x864  | 5       | N/A     | N/A     | 82.6%      | 88.8%      | 5,345MB |
+| This repo |  640x512   | 3       | 4.524mm | 72.33%  | **84.35%** | **90.52%** | **1,401MB** |
 
-*Generally,larger resolution leads to better accuracy and lower error. So the result of this repo might be improved if using larger resolution.
+*Generally, larger resolution and number of views lead to better accuracy and lower error. So the result of this repo might be improved if using larger resolution.
 
 ## Pretrained model and log
 Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases/tag/v1.0).
