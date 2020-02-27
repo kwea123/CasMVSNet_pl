@@ -58,7 +58,8 @@ The metrics are collected on the DTU val set.
 |           | resolution*| n_views*| abs_err | 1mm acc | 2mm acc    | 4mm acc    | GPU mem |
 | :---:     |  :---:     | :---:   | :---:   |  :---:  | :---:      | :---:      | :---:   |
 | Paper     |  1152x864  | 5       | N/A     | N/A     | 82.6%      | 88.8%      | 5,345MB |
-| This repo |  640x512   | 3       | 4.524mm | 72.33%  | **84.35%** | **90.52%** | **2,609MB** |
+| This repo |  640x512   | 3       | 4.524mm | 72.33%  | **84.35%** | **90.52%** | 2,609MB |
+| This repo |  1152x864  | 5       | N/A     | N/A     | N/A        | N/A        | **4,523MB** |
 
 *Generally, larger resolution and number of views lead to better accuracy and lower error. So the result of this repo might be improved if using larger resolution.
 
