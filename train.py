@@ -8,7 +8,7 @@ from datasets.dtu import DTUDataset
 
 # models
 from models.mvsnet import CascadeMVSNet
-from inplace_abn import InPlaceABN, InPlaceABNSync
+from inplace_abn import InPlaceABN
 
 from torchvision import transforms as T
 
@@ -38,6 +38,22 @@ class MVSSystem(pl.LightningModule):
                                         std=[1/0.229, 1/0.224, 1/0.225])
 
         self.loss = loss_dict[hparams.loss_type](hparams.levels)
+
+        self.model = CascadeMVSNet(n_depths=self.hparams.n_depths,
+                                   interval_ratios=self.hparams.interval_ratios,
+                                   num_groups=self.hparams.num_groups,
+                                   norm_act=InPlaceABN)
+
+        # if num gpu is 1, print model structure and number of params
+        if self.hparams.num_gpus == 1:
+            # print(self.model)
+            print('number of parameters : %.2f M' % 
+                  (sum(p.numel() for p in self.model.parameters() if p.requires_grad) / 1e6))
+        
+        # load model if checkpoint path is provided
+        if self.hparams.ckpt_path != '':
+            print('Load model from', self.hparams.ckpt_path)
+            load_ckpt(self.model, self.hparams.ckpt_path, self.hparams.prefixes_to_ignore)
 
     def forward(self, imgs, proj_mats, init_depth_min, depth_interval):
         return self.model(imgs, proj_mats, init_depth_min, depth_interval)
@@ -127,27 +143,6 @@ class MVSSystem(pl.LightningModule):
                }
 
     def configure_optimizers(self):
-        if self.hparams.use_syncbn and self.hparams.num_gpus>1:
-            norm_act = InPlaceABNSync
-        else:
-            norm_act = InPlaceABN
-
-        self.model = CascadeMVSNet(n_depths=self.hparams.n_depths,
-                                   interval_ratios=self.hparams.interval_ratios,
-                                   num_groups=self.hparams.num_groups,
-                                   norm_act=norm_act).cuda()
-
-        # if num gpu is 1, print model structure and number of params
-        if self.hparams.num_gpus == 1:
-            # print(self.model)
-            print('number of parameters : %.2f M' % 
-                  (sum(p.numel() for p in self.model.parameters() if p.requires_grad) / 1e6))
-        
-        # load model if checkpoint path is provided
-        if self.hparams.ckpt_path != '':
-            print('Load model from', self.hparams.ckpt_path)
-            load_ckpt(self.model, self.hparams.ckpt_path, self.hparams.prefixes_to_ignore)
-
         self.optimizer = get_optimizer(self.hparams, self.model)
         scheduler = get_scheduler(self.hparams, self.optimizer)
         
@@ -167,7 +162,7 @@ class MVSSystem(pl.LightningModule):
         return DataLoader(train_dataset, 
                           shuffle=(sampler is None),
                           sampler=sampler,
-                          num_workers=8,
+                          num_workers=4,
                           batch_size=self.hparams.batch_size,
                           pin_memory=True)
 
@@ -185,7 +180,7 @@ class MVSSystem(pl.LightningModule):
         return DataLoader(val_dataset, 
                           shuffle=(sampler is None),
                           sampler=sampler,
-                          num_workers=8,
+                          num_workers=4,
                           batch_size=self.hparams.batch_size,
                           pin_memory=True)
 
