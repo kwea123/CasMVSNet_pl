@@ -178,7 +178,7 @@ if __name__ == "__main__":
     point_dir = 'results/points'
     os.makedirs(point_dir, exist_ok=True)
     print('Fusing point clouds...')
-    for scan in ['scan9']:#dataset.scans:
+    for scan in dataset.scans:
         print(f'Processing {scan}...')
         # buffers for the final vertices of this scan
         vs = []
