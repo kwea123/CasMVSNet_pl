@@ -74,4 +74,6 @@ For testing depth prediction with val/test set, please see `test.ipynb`.
 
 For depth fusion, run `python eval.py --split test --ckpt_path ckpts/exp2/_ckpt_epoch_10.ckpt (--save_depth_visual)`. It will generate depth prediction files under folder `results/depth`; after the depth prediction for all images finished, it will perform depth fusion for all scans and generate `.ply` files under folder `results/points`. Feel free to comment out the `# Step 1.` to experiment different depth fusion parameters, or replace `dataset.scans` in `L181` with a specific scan (e.g. `scan9`).
 
+The fusion code is heavily borrowed from [MVSNet_pytorch](https://github.com/xy-guo/MVSNet_pytorch/blob/master/eval.py) with refactoring.
+
 Finally, to visualize the point cloud, run `python visualize_ply.py --scan {scan_number}`.
