@@ -26,9 +26,11 @@ def get_opts():
     parser.add_argument('--split', type=str,
                         default='val', choices=['train', 'val', 'test'],
                         help='which split to evaluate')
+    parser.add_argument('--scans', nargs="+", type=int, default=[],
+                        help='specify scans to evaluate (must be in the split)')
     # for depth prediction
     parser.add_argument('--n_views', type=int, default=5,
-                        help='number of views (including ref) to be used in training')
+                        help='number of views (including ref) to be used in testing')
     parser.add_argument('--depth_interval', type=float, default=2.65,
                         help='depth interval unit in mm')
     parser.add_argument('--n_depths', nargs='+', type=int, default=[8,32,48],
@@ -143,6 +145,10 @@ if __name__ == "__main__":
                          n_views=args.n_views, depth_interval=args.depth_interval,
                          img_wh=tuple(args.img_wh))
 
+    if args.scans:
+        scans = [f'scan{scan}' for scan in args.scans]
+    else: # evaluate on all scans in dataset
+        scans = dataset.scans
 
     # Step 1. Create depth estimation and probability for each scan
     model = CascadeMVSNet(n_depths=args.n_depths,
@@ -153,16 +159,24 @@ if __name__ == "__main__":
     model.eval()
 
     depth_dir = 'results/depth'
-    print('Creating depth predictions...')
-    for i in tqdm(range(len(dataset))):
+    print('Creating depth and confidence predictions...')
+    if args.scans:
+        rang = []
+        for scan in scans:
+            idx = dataset.scans.index(scan)
+            rang += list(range(idx*49, (idx+1)*49))
+    else:
+        rang = range(len(dataset))
+    for i in tqdm(rang):
         imgs, proj_mats, depths, masks, init_depth_min, depth_interval, \
             scan, vid = decode_batch(dataset[i])
         
         os.makedirs(os.path.join(depth_dir, scan), exist_ok=True)
 
         with torch.no_grad():
-            results = model(imgs.unsqueeze(0).cuda(), proj_mats.unsqueeze(0).cuda(),
-                            init_depth_min, depth_interval)
+            imgs = imgs.unsqueeze(0).cuda()
+            proj_mats = proj_mats.unsqueeze(0).cuda()
+            results = model(imgs, proj_mats, init_depth_min, depth_interval)
         
         depth = results['depth_0'][0].cpu().numpy()
         proba = results['confidence_2'][0].cpu().numpy()
@@ -176,13 +190,16 @@ if __name__ == "__main__":
                         depth_img)
             cv2.imwrite(os.path.join(depth_dir, f'{scan}/proba_visual_{vid:04d}.jpg'),
                         (255*(proba>args.conf)).astype(np.uint8))
-
+        del imgs, proj_mats, results
+    del model
+    torch.cuda.empty_cache()
 
     # Step 2. Perform depth filtering and fusion
     point_dir = 'results/points'
     os.makedirs(point_dir, exist_ok=True)
     print('Fusing point clouds...')
-    for scan in dataset.scans:
+    
+    for scan in scans:
         print(f'Processing {scan}...')
         # buffers for the final vertices of this scan
         vs = []

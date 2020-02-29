@@ -9,4 +9,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     pcd = o3d.io.read_point_cloud(f"results/points/scan{args.scan}.ply")
-    o3d.visualization.draw_geometries([pcd])  
+    o3d.visualization.draw_geometries([pcd])
