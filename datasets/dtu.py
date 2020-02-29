@@ -10,15 +10,17 @@ from torchvision import transforms as T
 class DTUDataset(Dataset):
     def __init__(self, root_dir, split, n_views=3, levels=3, depth_interval=2.65,
                  img_wh=None):
+        """
+        img_wh should be set to a tuple ex: (1152, 864) to enable test mode!
+        """
         self.root_dir = root_dir
         self.split = split
-        assert self.split in ['train', 'val'], \
-            'split must be either "train" or "val"!'
+        assert self.split in ['train', 'val', 'test'], \
+            'split must be either "train", "val" or "test"!'
         self.img_wh = img_wh
         if img_wh is not None:
             assert img_wh[0]%32==0 and img_wh[1]%32==0, \
                 'img_wh must both be multiples of 32!'
-            assert self.split == 'val', 'img_wh can only be specified in val mode!'
         self.build_metas()
         self.n_views = n_views
         self.levels = levels # FPN levels
@@ -29,18 +31,21 @@ class DTUDataset(Dataset):
     def build_metas(self):
         self.metas = []
         with open(f'datasets/lists/dtu/{self.split}.txt') as f:
-            scans = [line.rstrip() for line in f.readlines()]
+            self.scans = [line.rstrip() for line in f.readlines()]
+
+        # light conditions 0-6 for training
+        # light condition 3 for testing (the brightest?)
+        light_idxs = [3] if self.img_wh else range(7)
 
         pair_file = "Cameras/pair.txt"
-        for scan in scans:
+        for scan in self.scans:
             with open(os.path.join(self.root_dir, pair_file)) as f:
                 num_viewpoint = int(f.readline())
                 # viewpoints (49)
                 for _ in range(num_viewpoint):
                     ref_view = int(f.readline().rstrip())
                     src_views = [int(x) for x in f.readline().rstrip().split()[1::2]]
-                    # light conditions 0-6
-                    for light_idx in range(7):
+                    for light_idx in light_idxs:
                         self.metas += [(scan, light_idx, ref_view, src_views)]
 
     def build_proj_mats(self):
@@ -140,13 +145,13 @@ class DTUDataset(Dataset):
         return len(self.metas)
 
     def __getitem__(self, idx):
+        sample = {}
         scan, light_idx, ref_view, src_views = self.metas[idx]
         # use only the reference view and first nviews-1 source views
         view_ids = [ref_view] + src_views[:self.n_views-1]
 
         imgs = []
-        proj_mats = []
-
+        proj_mats = [] # record proj mats between views
         for i, vid in enumerate(view_ids):
             # NOTE that the id in image file names is from 1 to 49 (not 0~48)
             if self.img_wh is None:
@@ -178,4 +183,14 @@ class DTUDataset(Dataset):
         imgs = torch.stack(imgs) # (V, 3, H, W)
         proj_mats = torch.stack(proj_mats)[:,:,:3] # (V-1, self.levels, 3, 4) from fine to coarse
 
-        return imgs, proj_mats, depths, masks, depth_min, self.depth_interval
+        sample['imgs'] = imgs
+        sample['proj_mats'] = proj_mats
+        sample['depths'] = depths
+        sample['masks'] = masks
+        sample['init_depth_min'] = depth_min
+        sample['depth_interval'] = self.depth_interval
+
+        if self.img_wh is not None:
+            sample['scan_vid'] = (scan, ref_view)
+
+        return sample
