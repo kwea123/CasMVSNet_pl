@@ -55,13 +55,24 @@ class MVSSystem(pl.LightningModule):
             print('Load model from', self.hparams.ckpt_path)
             load_ckpt(self.model, self.hparams.ckpt_path, self.hparams.prefixes_to_ignore)
 
+    def decode_batch(self, batch):
+        imgs = batch['imgs']
+        proj_mats = batch['proj_mats']
+        depths = batch['depths']
+        masks = batch['masks']
+        init_depth_min = batch['init_depth_min']
+        depth_interval = batch['depth_interval']
+        return imgs, proj_mats, depths, masks, init_depth_min, depth_interval
+
     def forward(self, imgs, proj_mats, init_depth_min, depth_interval):
         return self.model(imgs, proj_mats, init_depth_min, depth_interval)
 
     def training_step(self, batch, batch_nb):
-        imgs, proj_mats, depths, masks, init_depth_min, depth_interval = batch
+        log = {'lr': get_learning_rate(self.optimizer)}
+        imgs, proj_mats, depths, masks, init_depth_min, depth_interval = \
+            self.decode_batch(batch)
         results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
-        loss = self.loss(results, depths, masks)
+        log['train/loss'] = loss = self.loss(results, depths, masks)
         
         with torch.no_grad():
             if batch_nb == 0:
@@ -76,27 +87,23 @@ class MVSSystem(pl.LightningModule):
             depth_pred = results['depth_0']
             depth_gt = depths['level_0']
             mask = masks['level_0']
-            abs_err = abs_error(depth_pred, depth_gt, mask).mean()
-            acc_1mm = acc_threshold(depth_pred, depth_gt, mask, 1).mean()
-            acc_2mm = acc_threshold(depth_pred, depth_gt, mask, 2).mean()
-            acc_4mm = acc_threshold(depth_pred, depth_gt, mask, 4).mean()
+            log['train/abs_err'] = abs_err = abs_error(depth_pred, depth_gt, mask).mean()
+            log['train/acc_1mm'] = acc_threshold(depth_pred, depth_gt, mask, 1).mean()
+            log['train/acc_2mm'] = acc_threshold(depth_pred, depth_gt, mask, 2).mean()
+            log['train/acc_4mm'] = acc_threshold(depth_pred, depth_gt, mask, 4).mean()
 
         return {'loss': loss,
                 'progress_bar': {'train_abs_err': abs_err},
-                'log': {'train/loss': loss,
-                        'train/abs_err': abs_err,
-                        'train/acc_1mm': acc_1mm,
-                        'train/acc_2mm': acc_2mm,
-                        'train/acc_4mm': acc_4mm,
-                        'lr': get_learning_rate(self.optimizer)}
+                'log': log
                }
 
     @torch.no_grad()
     def validation_step(self, batch, batch_nb):
-        imgs, proj_mats, depths, masks, init_depth_min, depth_interval = batch
-
+        log = {}
+        imgs, proj_mats, depths, masks, init_depth_min, depth_interval = \
+            self.decode_batch(batch)
         results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
-        loss = self.loss(results, depths, masks)
+        log['val_loss'] = self.loss(results, depths, masks)
     
         if batch_nb == 0:
             img_ = self.unpreprocess(imgs[0,0]).cpu() # batch 0, ref image
@@ -111,18 +118,13 @@ class MVSSystem(pl.LightningModule):
         depth_gt = depths['level_0']
         mask = masks['level_0']
 
-        abs_err = abs_error(depth_pred, depth_gt, mask).sum()
-        acc_1mm = acc_threshold(depth_pred, depth_gt, mask, 1).sum()
-        acc_2mm = acc_threshold(depth_pred, depth_gt, mask, 2).sum()
-        acc_4mm = acc_threshold(depth_pred, depth_gt, mask, 4).sum()
+        log['val_abs_err'] = abs_error(depth_pred, depth_gt, mask).sum()
+        log['val_acc_1mm'] = acc_threshold(depth_pred, depth_gt, mask, 1).sum()
+        log['val_acc_2mm'] = acc_threshold(depth_pred, depth_gt, mask, 2).sum()
+        log['val_acc_4mm'] = acc_threshold(depth_pred, depth_gt, mask, 4).sum()
+        log['mask_sum'] = mask.float().sum()
 
-        return {'val_loss': loss,
-                'val_abs_err': abs_err,
-                'val_acc_1mm': acc_1mm,
-                'val_acc_2mm': acc_2mm,
-                'val_acc_4mm': acc_4mm,
-                'mask_sum': mask.float().sum()
-                }
+        return log
 
     def validation_end(self, outputs):
         mean_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
@@ -187,8 +189,7 @@ class MVSSystem(pl.LightningModule):
 if __name__ == '__main__':
     hparams = get_opts()
     system = MVSSystem(hparams)
-    checkpoint_callback = ModelCheckpoint(filepath=os.path.join('ckpts', 
-                                                   hparams.exp_name),
+    checkpoint_callback = ModelCheckpoint(filepath=os.path.join('ckpts', hparams.exp_name),
                                           monitor='val/acc_2mm',
                                           mode='max',
                                           save_top_k=5,)
