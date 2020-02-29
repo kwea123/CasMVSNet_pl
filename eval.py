@@ -41,13 +41,13 @@ def get_opts():
                         help='resolution (img_w, img_h) of the image, must be multiples of 32')
     parser.add_argument('--ckpt_path', type=str, default='',
                         help='pretrained checkpoint path to load')
-    parser.add_argument('--save_depth_visual', default=False, action='store_true',
-                        help='save depth visualization or not')
+    parser.add_argument('--save_visual', default=False, action='store_true',
+                        help='save depth and proba visualization or not')
 
     # for point cloud fusion
-    parser.add_argument('--conf', type=float, default=0.99,
+    parser.add_argument('--conf', type=float, default=0.999,
                         help='min confidence for pixel to be valid')
-    parser.add_argument('--min_geo_consistent', type=int, default=7,
+    parser.add_argument('--min_geo_consistent', type=int, default=5,
                         help='min number of consistent views for pixel to be valid')
     parser.add_argument('--skip', type=int, default=1,
                         help='''how many points to skip when creating the point cloud.
@@ -113,7 +113,8 @@ def xy_src2ref(xy_ref, xy_src, depth_ref, P_world2ref,
 
 
 def check_geo_consistency(depth_ref, P_world2ref,
-                          depth_src, P_world2src, img_wh):
+                          depth_src, P_world2src,
+                          img_wh):
     """
     Check the geometric consistency between ref and src views.
     """
@@ -130,6 +131,7 @@ def check_geo_consistency(depth_ref, P_world2ref,
     depth_ref_reproj, mask_geo = \
         xy_src2ref(xy_ref, xy_src, depth_ref, P_world2ref, 
                    depth_src2ref, P_world2src, img_wh)
+
     depth_ref_reproj[~mask_geo] = 0
     
     return depth_ref_reproj, mask_geo
@@ -163,15 +165,17 @@ if __name__ == "__main__":
                             init_depth_min, depth_interval)
         
         depth = results['depth_0'][0].cpu().numpy()
+        proba = results['confidence_2'][0].cpu().numpy()
         save_pfm(os.path.join(depth_dir, f'{scan}/depth_{vid:04d}.pfm'), depth)
-        save_pfm(os.path.join(depth_dir, f'{scan}/proba_{vid:04d}.pfm'),
-                 results['confidence_0'][0].cpu().numpy())
-        if args.save_depth_visual:
+        save_pfm(os.path.join(depth_dir, f'{scan}/proba_{vid:04d}.pfm'), proba) # NOTE: this is 1/4 scale!
+        if args.save_visual:
             depth = (depth-depth.min())/(depth.max()-depth.min())
             depth = (255*depth).astype(np.uint8)
             depth_img = cv2.applyColorMap(depth, cv2.COLORMAP_JET)
             cv2.imwrite(os.path.join(depth_dir, f'{scan}/depth_visual_{vid:04d}.jpg'),
                         depth_img)
+            cv2.imwrite(os.path.join(depth_dir, f'{scan}/proba_visual_{vid:04d}.jpg'),
+                        (255*(proba>args.conf)).astype(np.uint8))
 
 
     # Step 2. Perform depth filtering and fusion
@@ -190,6 +194,8 @@ if __name__ == "__main__":
                                    interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
             depth_ref = read_pfm(f'results/depth/{scan}/depth_{ref_vid:04d}.pfm')[0]
             proba_ref = read_pfm(f'results/depth/{scan}/proba_{ref_vid:04d}.pfm')[0]
+            proba_ref = cv2.resize(proba_ref, None, fx=4, fy=4,
+                                   interpolation=cv2.INTER_LINEAR)
             mask_conf = proba_ref > args.conf # confidence mask
             P_world2ref = dataset.proj_mats[ref_vid][0][0].numpy()
             
