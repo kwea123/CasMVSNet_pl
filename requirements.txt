@@ -5,3 +5,8 @@ kornia==0.2.0
 opencv-python==4.1.2.30
 jupyter
 test-tube
+
+# for point cloud visualization
+plyfile
+open3d
+numba
