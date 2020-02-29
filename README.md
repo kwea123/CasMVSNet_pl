@@ -67,14 +67,14 @@ The metrics are collected on the DTU val set.
 
 ## Pretrained model and log
 Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases/tag/v1.0).
-The above metrics of `This repo (original)` correspond to this training but the model is saved on the 10th epoch (least `val_loss` but not the best in other metrics).
+The above metrics of `This repo (same as paper)` correspond to this training but the model is saved on the 10th epoch (least `val_loss` but not the best in other metrics).
 
 # Testing
 For testing depth prediction with val/test set, please see `test.ipynb`.
 
 For depth fusion, run `python eval.py --split test --ckpt_path ckpts/exp2/_ckpt_epoch_10.ckpt (--save_visual)`. It will generate depth prediction files under folder `results/depth`; after the depth prediction for all images finished, it will perform depth fusion for all scans and generate `.ply` files under folder `results/points`.
 
-*  Feel free to comment out the `# Step 1.` to experiment different depth fusion parameters, or replace `dataset.scans` in `L181` with a specific scan (e.g. `scan9`).
+*  You can comment out the `# Step 1.` to do depth fusion only, after the depth prediction are generated.
 *  You can add `--scan {scan_number}` to only do depth fusion on specific scans (specify also the correct `--split`). Otherwise the default will process all scans in the `split`.
 
 The fusion code is heavily borrowed from [MVSNet_pytorch](https://github.com/xy-guo/MVSNet_pytorch/blob/master/eval.py) with refactoring.
