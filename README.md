@@ -77,3 +77,9 @@ For depth fusion, run `python eval.py --split test --ckpt_path ckpts/exp2/_ckpt_
 The fusion code is heavily borrowed from [MVSNet_pytorch](https://github.com/xy-guo/MVSNet_pytorch/blob/master/eval.py) with refactoring.
 
 Finally, to visualize the point cloud, run `python visualize_ply.py --scan {scan_number}`.
+
+## Demo for scan9
+I provide the fusion result for scan9 with the default parameters in `eval.py` in [release](https://github.com/kwea123/CasMVSNet_pl/releases/tag/v1.1).
+
+Also A video showing how the point cloud look like (click to link to YouTube):
+[![teaser](assets/demo.gif)](https://youtu.be/wCjMoBR9Nh0)
