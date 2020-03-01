@@ -80,7 +80,7 @@ For depth fusion, run `python eval.py --split test --ckpt_path ckpts/exp2/_ckpt_
 
 *  You can comment out the `# Step 1.` to do depth fusion only, after the depth prediction are generated.
 *  You can add `--scan {scan_number}` to only do depth fusion on specific scans (specify also the correct `--split`). Otherwise the default will process all scans in the `split`.
-*  The speed for one scan is about 1min: 40s for depth prediction of 49 ref views and 20s of depth fusion.
+*  The speed for one scan is about 80s: 40s for depth prediction of 49 ref views and 40s of depth fusion.
 
 The fusion code is heavily borrowed from [MVSNet_pytorch](https://github.com/xy-guo/MVSNet_pytorch/blob/master/eval.py) with refactoring and the following modifications (without careful investigations, I just think it looks better):
 1.  After the depth of the ref view is refined (this is original mvsnet method), I **use the refined depth** for the following runs (1 run=1 ref view and many src views). For example, depth of view 0 is refined in the first run, then the next run, for ref view 1, if it uses view 0 as src view, this time we don't use the original depth prediction, instead we use the refined depth of the previous run since it is generally better (average across many views).
