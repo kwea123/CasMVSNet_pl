@@ -94,5 +94,17 @@ I provide the fusion result for **all 119 scans** with the default parameters in
 The default viewpoint looks like:
 ![teaser](assets/demo.png)
 
+Comparison between some open source methods:
+<p align="center">
+  <img src="assets/cascade.png", width="48%">
+  <img src="assets/rmvsnet.png", width="48%">
+  <br>
+  <img src="assets/demo.png", width="48%">
+  <br>
+  <sup>Top left: 
+     <a href="https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet">Original casmvsnet</a> Top right: <a href="https://github.com/YoYo000/MVSNet">R-MVSNet</a> Bottom: This repo
+  </sup>
+</p>
+
 Also a video showing the point cloud in different angles (click to link to YouTube):
 [![teaser](assets/demo.gif)](https://youtu.be/wCjMoBR9Nh0)
