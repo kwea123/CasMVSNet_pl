@@ -116,6 +116,7 @@ def xy_src2ref(xy_ref, xy_src, depth_ref, P_world2ref,
 
 def check_geo_consistency(depth_ref, P_world2ref,
                           depth_src, P_world2src,
+                          image_ref, image_src,
                           img_wh):
     """
     Check the geometric consistency between ref and src views.
@@ -130,13 +131,19 @@ def check_geo_consistency(depth_ref, P_world2ref,
                               xy_src[1].astype(np.float32),
                               interpolation=cv2.INTER_LINEAR)
 
+    image_src2ref = cv2.remap(image_src,
+                              xy_src[0].astype(np.float32),
+                              xy_src[1].astype(np.float32),
+                              interpolation=cv2.INTER_LINEAR)
+
     depth_ref_reproj, mask_geo = \
         xy_src2ref(xy_ref, xy_src, depth_ref, P_world2ref, 
                    depth_src2ref, P_world2src, img_wh)
 
     depth_ref_reproj[~mask_geo] = 0
+    image_src2ref[~mask_geo] = 0
     
-    return depth_ref_reproj, mask_geo
+    return depth_ref_reproj, mask_geo, image_src2ref
 
 
 if __name__ == "__main__":
@@ -150,49 +157,50 @@ if __name__ == "__main__":
     else: # evaluate on all scans in dataset
         scans = dataset.scans
 
-    # Step 1. Create depth estimation and probability for each scan
-    model = CascadeMVSNet(n_depths=args.n_depths,
-                          interval_ratios=args.interval_ratios,
-                          num_groups=args.num_groups,
-                          norm_act=ABN).cuda()
-    load_ckpt(model, args.ckpt_path)
-    model.eval()
+    # # Step 1. Create depth estimation and probability for each scan
+    # model = CascadeMVSNet(n_depths=args.n_depths,
+    #                       interval_ratios=args.interval_ratios,
+    #                       num_groups=args.num_groups,
+    #                       norm_act=ABN).cuda()
+    # load_ckpt(model, args.ckpt_path)
+    # model.eval()
 
-    depth_dir = 'results/depth'
-    print('Creating depth and confidence predictions...')
-    if args.scans:
-        rang = []
-        for scan in scans:
-            idx = dataset.scans.index(scan)
-            rang += list(range(idx*49, (idx+1)*49))
-    else:
-        rang = range(len(dataset))
-    for i in tqdm(rang):
-        imgs, proj_mats, depths, masks, init_depth_min, depth_interval, \
-            scan, vid = decode_batch(dataset[i])
+    # depth_dir = 'results/depth'
+    # print('Creating depth and confidence predictions...')
+    # if args.scans:
+    #     data_range = []
+    #     for scan in scans:
+    #         idx = dataset.scans.index(scan)
+    #         data_range += list(range(idx*49, (idx+1)*49))
+    # else:
+    #     data_range = range(len(dataset))
+    # for i in tqdm(data_range):
+    #     imgs, proj_mats, depths, masks, init_depth_min, depth_interval, \
+    #         scan, vid = decode_batch(dataset[i])
         
-        os.makedirs(os.path.join(depth_dir, scan), exist_ok=True)
+    #     os.makedirs(os.path.join(depth_dir, scan), exist_ok=True)
 
-        with torch.no_grad():
-            imgs = imgs.unsqueeze(0).cuda()
-            proj_mats = proj_mats.unsqueeze(0).cuda()
-            results = model(imgs, proj_mats, init_depth_min, depth_interval)
+    #     with torch.no_grad():
+    #         imgs = imgs.unsqueeze(0).cuda()
+    #         proj_mats = proj_mats.unsqueeze(0).cuda()
+    #         results = model(imgs, proj_mats, init_depth_min, depth_interval)
         
-        depth = results['depth_0'][0].cpu().numpy()
-        proba = results['confidence_2'][0].cpu().numpy()
-        save_pfm(os.path.join(depth_dir, f'{scan}/depth_{vid:04d}.pfm'), depth)
-        save_pfm(os.path.join(depth_dir, f'{scan}/proba_{vid:04d}.pfm'), proba) # NOTE: this is 1/4 scale!
-        if args.save_visual:
-            depth = (depth-depth.min())/(depth.max()-depth.min())
-            depth = (255*depth).astype(np.uint8)
-            depth_img = cv2.applyColorMap(depth, cv2.COLORMAP_JET)
-            cv2.imwrite(os.path.join(depth_dir, f'{scan}/depth_visual_{vid:04d}.jpg'),
-                        depth_img)
-            cv2.imwrite(os.path.join(depth_dir, f'{scan}/proba_visual_{vid:04d}.jpg'),
-                        (255*(proba>args.conf)).astype(np.uint8))
-        del imgs, proj_mats, results
-    del model
-    torch.cuda.empty_cache()
+    #     depth = results['depth_0'][0].cpu().numpy()
+    #     proba = results['confidence_2'][0].cpu().numpy() # NOTE: this is 1/4 scale!
+    #     save_pfm(os.path.join(depth_dir, f'{scan}/depth_{vid:04d}.pfm'), depth)
+    #     save_pfm(os.path.join(depth_dir, f'{scan}/proba_{vid:04d}.pfm'), proba)
+    #     if args.save_visual:
+    #         depth = (depth-depth.min())/(depth.max()-depth.min())
+    #         depth = (255*depth).astype(np.uint8)
+    #         depth_img = cv2.applyColorMap(depth, cv2.COLORMAP_JET)
+    #         cv2.imwrite(os.path.join(depth_dir, f'{scan}/depth_visual_{vid:04d}.jpg'),
+    #                     depth_img)
+    #         cv2.imwrite(os.path.join(depth_dir, f'{scan}/proba_visual_{vid:04d}.jpg'),
+    #                     (255*(proba>args.conf)).astype(np.uint8))
+    #     del imgs, proj_mats, results
+    # del model
+    # torch.cuda.empty_cache()
+    ###################################################################################
 
     # Step 2. Perform depth filtering and fusion
     point_dir = 'results/points'
@@ -204,12 +212,19 @@ if __name__ == "__main__":
         # buffers for the final vertices of this scan
         vs = []
         v_colors = []
+        # buffers storing the refined data of each ref view
+        depth_refined = {}
+        image_refined = {}
         for ref_vid, meta in tqdm(enumerate(filter(lambda x: x[0]==scan, dataset.metas))):
-            image_ref = cv2.imread(os.path.join(args.root_dir,
-                                    f'Rectified/{scan}/rect_{ref_vid+1:03d}_3_r5000.png'))
-            image_ref = cv2.resize(image_ref, tuple(args.img_wh),
-                                   interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
-            depth_ref = read_pfm(f'results/depth/{scan}/depth_{ref_vid:04d}.pfm')[0]
+            if ref_vid in image_refined: # not yet refined actually
+                image_ref = image_refined[ref_vid]
+                depth_ref = depth_refined[ref_vid]
+            else:
+                image_ref = cv2.imread(os.path.join(args.root_dir,
+                                       f'Rectified/{scan}/rect_{ref_vid+1:03d}_3_r5000.png'))
+                image_ref = cv2.resize(image_ref, tuple(args.img_wh),
+                                       interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
+                depth_ref = read_pfm(f'results/depth/{scan}/depth_{ref_vid:04d}.pfm')[0]
             proba_ref = read_pfm(f'results/depth/{scan}/proba_{ref_vid:04d}.pfm')[0]
             proba_ref = cv2.resize(proba_ref, None, fx=4, fy=4,
                                    interpolation=cv2.INTER_LINEAR)
@@ -218,27 +233,42 @@ if __name__ == "__main__":
             
             src_vids = meta[3]
             mask_geos = []
-            depth_ref_reprojs = []
+            depth_ref_reprojs = [depth_ref]
+            image_src2refs = [image_ref]
             # for each src view, check the consistency and refine depth
             for src_vid in src_vids:
-                depth_src = read_pfm(f'results/depth/{scan}/depth_{src_vid:04d}.pfm')[0]
+                if src_vid in depth_refined: # use refined data of previous runs
+                    image_src = image_refined[src_vid]
+                    depth_src = depth_refined[src_vid]
+                else:
+                    image_src = cv2.imread(os.path.join(args.root_dir,
+                                       f'Rectified/{scan}/rect_{src_vid+1:03d}_3_r5000.png'))
+                    image_src = cv2.resize(image_src, tuple(args.img_wh),
+                                       interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
+                    depth_src = read_pfm(f'results/depth/{scan}/depth_{src_vid:04d}.pfm')[0]
+                    image_refined[src_vid] = image_src
+                    depth_refined[src_vid] = depth_src
                 P_world2src = dataset.proj_mats[src_vid][0][0].numpy()
-                depth_ref_reproj, mask_geo = check_geo_consistency(depth_ref, P_world2ref,
-                                                                   depth_src, P_world2src,
-                                                                   tuple(args.img_wh))
+                depth_ref_reproj, mask_geo, image_src2ref = \
+                    check_geo_consistency(depth_ref, P_world2ref,
+                                          depth_src, P_world2src,
+                                          image_ref, image_src, tuple(args.img_wh))
                 depth_ref_reprojs += [depth_ref_reproj]
+                image_src2refs += [image_src2ref]
                 mask_geos += [mask_geo]
             mask_geo_sum = np.sum(mask_geos, 0)
             mask_geo_final = mask_geo_sum >= args.min_geo_consistent
-            depth_ref_average = (np.sum(depth_ref_reprojs, 0)+depth_ref)/(mask_geo_sum+1)
+            depth_refined[ref_vid] = \
+                (np.sum(depth_ref_reprojs, 0)/(mask_geo_sum+1)).astype(np.float32)
+            image_refined[ref_vid] = \
+                np.sum(image_src2refs, 0)/np.expand_dims((mask_geo_sum+1), -1)
             mask_final = mask_conf & mask_geo_final
-            depth_ref_average[~mask_final] = 0
             
             # create the final points
             xy_ref = np.mgrid[:args.img_wh[1],:args.img_wh[0]][::-1]
-            xyz_ref = np.vstack((xy_ref, np.ones_like(xy_ref[:1]))) * depth_ref_average
+            xyz_ref = np.vstack((xy_ref, np.ones_like(xy_ref[:1]))) * depth_refined[ref_vid]
             xyz_ref = xyz_ref.transpose(1,2,0)[mask_final].T # (3, N)
-            color = image_ref[mask_final] # (N, 3)
+            color = image_refined[ref_vid][mask_final] # (N, 3)
             xyz_ref_h = np.vstack((xyz_ref, np.ones_like(xyz_ref[:1])))
             xyz_world = (np.linalg.inv(P_world2ref) @ xyz_ref_h).T # (N, 4)
             xyz_world = xyz_world[::args.skip, :3]
@@ -247,21 +277,19 @@ if __name__ == "__main__":
             # append to buffers
             vs += [xyz_world]
             v_colors += [color]
-            
+
         # process all points in the buffers
-        vs = np.concatenate(vs, axis=0)
-        v_colors = np.concatenate(v_colors, axis=0)
+        vs = np.ascontiguousarray(np.vstack(vs).astype(np.float32))
+        v_colors = np.vstack(v_colors).astype(np.uint8)
         print(scan, 'contains', len(vs), 'points')
-        vs = np.array([tuple(v) for v in vs],
-                      dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')])
-        v_colors = np.array([tuple(v) for v in v_colors],
-                            dtype=[('red', 'u1'), ('green', 'u1'), ('blue', 'u1')])
+        vs.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
+        v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
 
         vertex_all = np.empty(len(vs), vs.dtype.descr+v_colors.dtype.descr)
         for prop in vs.dtype.names:
-            vertex_all[prop] = vs[prop]
+            vertex_all[prop] = vs[prop][:, 0]
         for prop in v_colors.dtype.names:
-            vertex_all[prop] = v_colors[prop]
+            vertex_all[prop] = v_colors[prop][:, 0]
 
         el = PlyElement.describe(vertex_all, 'vertex')
         PlyData([el]).write(f'{point_dir}/{scan}.ply')
