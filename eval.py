@@ -24,7 +24,7 @@ def get_opts():
                         default='/home/ubuntu/data/mvs_training/dtu/',
                         help='root directory of dtu dataset')
     parser.add_argument('--split', type=str,
-                        default='val', choices=['train', 'val', 'test'],
+                        default='test', choices=['train', 'val', 'test'],
                         help='which split to evaluate')
     parser.add_argument('--scans', nargs="+", type=int, default=[],
                         help='specify scans to evaluate (must be in the split)')
@@ -41,7 +41,7 @@ def get_opts():
                         help='number of groups in groupwise correlation, must be a divisor of 8')
     parser.add_argument('--img_wh', nargs="+", type=int, default=[1152, 864],
                         help='resolution (img_w, img_h) of the image, must be multiples of 32')
-    parser.add_argument('--ckpt_path', type=str, default='',
+    parser.add_argument('--ckpt_path', type=str, default='ckpts/exp2/_ckpt_epoch_10.ckpt',
                         help='pretrained checkpoint path to load')
     parser.add_argument('--save_visual', default=False, action='store_true',
                         help='save depth and proba visualization or not')
