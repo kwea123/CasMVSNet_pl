@@ -17,19 +17,17 @@ if __name__ == "__main__":
 
     pcd = o3d.io.read_point_cloud(f"results/points/scan{args.scan}.ply")
     vis = o3d.visualization.Visualizer()
-
     vis.create_window()
     ctr = vis.get_view_control()
-
     opt = vis.get_render_option()
     opt.background_color = np.array([128/255, 128/255, 255/255])
+    vis.add_geometry(pcd)
+    
     if args.use_viewpoint:
         param = o3d.io.read_pinhole_camera_parameters(f"results/viewpoint.json")
-        vis.add_geometry(pcd)
         ctr.convert_from_pinhole_camera_parameters(param)
         vis.run()
     if args.save_viewpoint:
-        vis.add_geometry(pcd)
         vis.run()
         param = ctr.convert_to_pinhole_camera_parameters()
         o3d.io.write_pinhole_camera_parameters(f"results/viewpoint.json", param)
