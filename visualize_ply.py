@@ -22,13 +22,15 @@ if __name__ == "__main__":
     opt = vis.get_render_option()
     opt.background_color = np.array([128/255, 128/255, 255/255])
     vis.add_geometry(pcd)
-    
+
     if args.use_viewpoint:
         param = o3d.io.read_pinhole_camera_parameters(f"results/viewpoint.json")
         ctr.convert_from_pinhole_camera_parameters(param)
         vis.run()
-    if args.save_viewpoint:
+    elif args.save_viewpoint:
         vis.run()
         param = ctr.convert_to_pinhole_camera_parameters()
         o3d.io.write_pinhole_camera_parameters(f"results/viewpoint.json", param)
+    else:
+        vis.run()
     vis.destroy_window()
