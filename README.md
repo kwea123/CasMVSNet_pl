@@ -71,7 +71,7 @@ The above metrics of `This repo (same as paper)` correspond to this training but
 
 # Testing
 ## Data download
-You need to download [full resolution image](http://roboimagedata2.compute.dtu.dk/data/MVS/Rectified.zip) and unzip to the same folder as your training data, if you want to test the model for higher resolution (I tested with 1152x864).
+You need to download [full resolution image](http://roboimagedata2.compute.dtu.dk/data/MVS/Rectified.zip) and unzip to the same folder as your training data, if you want to test the model for higher resolution (I tested with 1152x864 to be aligned with the paper, but we are able to run full resolution 1600x1184 with 5 views, costing only 8.7GB GPU memory).
 
 ## Testing model
 For testing depth prediction with val/test set, please see `test.ipynb`.
