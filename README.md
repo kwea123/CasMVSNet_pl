@@ -59,7 +59,7 @@ The metrics are collected on the DTU val set.
 | :---:     |  :---:     | :---:   | :---:   |  :---:  | :---:      | :---:      | :---:   |
 | Paper     |  1152x864  | 5       | N/A     | N/A     | 82.6%      | 88.8%      | N/A / 5.3 |
 | This repo <br> (same as paper) |  640x512   | 3       | 4.524mm | 72.33%  | 84.35%     | 90.52%     | 8.5 / 2.1 |
-| This repo <br> (gwc**) |  1152x864  | 5       | N/A     | N/A     | N/A        | N/A        | **6.5 / 4.5** |
+| This repo <br> (gwc**) |  640x512  | 3       | 4.412mm     | 70.50%     | 83.61%        | 90.41%        | **6.5 / 4.5** |
 
 *Training memory is measured on `batch size=2` and `resolution=640x512`.
 
