@@ -28,11 +28,13 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
     * Install core requirements by `pip install -r requirements.txt`
     * Install [Inplace-ABN](https://github.com/mapillary/inplace_abn) by `pip install git+https://github.com/mapillary/inplace_abn.git@v1.0.11`
 
-# Data download
+# Training
+
+## Data download
 
 Download the preprocessed [DTU training data](https://drive.google.com/file/d/1eDjh-_bxKKnEuz5h-HXS7EDJn59clx6V/view) and [Depth_raw](https://virutalbuy-public.oss-cn-hangzhou.aliyuncs.com/share/cascade-stereo/CasMVSNet/dtu_data/dtu_train_hr/Depths_raw.zip) from original [MVSNet repo](https://github.com/YoYo000/MVSNet) and unzip. For the description of how the data is created, please refer to the original paper.
 
-# Training
+## Training model
 
 Run (example)
 ```
@@ -70,6 +72,7 @@ Download the pretrained model and training log in [release](https://github.com/k
 The above metrics of `This repo (same as paper)` correspond to this training but the model is saved on the 10th epoch (least `val_loss` but not the best in other metrics).
 
 # Testing
+
 ## Data download
 You need to download [full resolution image](http://roboimagedata2.compute.dtu.dk/data/MVS/Rectified.zip) and unzip to the same folder as your training data, if you want to test the model for higher resolution (I tested with 1152x864 to be aligned with the paper, but we are able to run full resolution 1600x1184 with 5 views, costing only 8.7GB GPU memory).
 
