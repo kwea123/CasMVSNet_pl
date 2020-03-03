@@ -20,7 +20,8 @@ if __name__ == "__main__":
     vis.create_window()
     ctr = vis.get_view_control()
     opt = vis.get_render_option()
-    opt.background_color = np.array([128/255, 128/255, 255/255])
+    opt.point_size = 1.0
+    opt.background_color = np.array([0.5, 0.5, 1.0])
     vis.add_geometry(pcd)
 
     if args.use_viewpoint:
