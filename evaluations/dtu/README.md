@@ -30,7 +30,8 @@ Since it takes a long time to evaluate (5 hours using default settings...), I pr
 | [MVSNet_pytorch](https://github.com/xy-guo/MVSNet_pytorch) | 0.4492 | 0.3796 | 0.4144 | 1600x1184(?) |
 | *[MVSNet_pytorch](https://github.com/xy-guo/MVSNet_pytorch) | 0.5229 | 0.4514 | 0.4871 | 1152x864 |
 | *[R-MVSNet](https://github.com/YoYo000/MVSNet) | 0.383 | 0.452 | 0.4175 | 1600x1184 |
-| *[CasMVSNet](https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet) | - | - | - | 1152x864 |
+| CasMVSNet paper (fusibile) | 0.325 | 0.385 | 0.355 | 1152x864 |
+| *[CasMVSNet](https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet) | 0.3779 | 0.3645 | 0.3712 | 1152x864 |
 | *[PointMVSNet](https://github.com/callmeray/PointMVSNet) | - | - | - | 1280x960 |
 | *This repo | 0.3653 | 0.3664 | 0.3658 | 1152x864 |
 

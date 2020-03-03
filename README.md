@@ -104,10 +104,11 @@ Comparison between some open source methods:
   <img src="assets/cascade.png", width="48%">
   <img src="assets/rmvsnet.png", width="48%">
   <br>
+  <img src="assets/pmvsnet.png", width="48%">
   <img src="assets/demo.png", width="48%">
   <br>
   <sup>Top left: 
-     <a href="https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet">Original casmvsnet</a> Top right: <a href="https://github.com/YoYo000/MVSNet">R-MVSNet</a> Bottom: This repo
+     <a href="https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet">Original casmvsnet</a> Top right: <a href="https://github.com/YoYo000/MVSNet">R-MVSNet</a> Bottom left: <a href="https://github.com/callmeray/PointMVSNet">PointMVSNet</a> Bottom right: This repo
   </sup>
 </p>
 
