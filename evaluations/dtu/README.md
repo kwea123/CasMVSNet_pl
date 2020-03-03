@@ -24,7 +24,7 @@ Where the `ObsMask` folder is taken from `SampleSet/MVS Data`.
 ## Result
 Since it takes a long time to evaluate (5 hours using default settings...), I provide the numbers here for comparison with some open source methods:
 
-|   | Acc. | Comp. | Overall | **resolution |
+|   | Acc. | Comp. | Overall | resolution |
 | --- | --- | --- | --- | --- |
 | [MVSNet](https://github.com/YoYo000/MVSNet) | 0.396 | 0.527 | 0.462 | 1600x1184 |
 | [MVSNet_pytorch](https://github.com/xy-guo/MVSNet_pytorch) | 0.4492 | 0.3796 | 0.4144 | 1600x1184(?) |
