@@ -59,7 +59,7 @@ The metrics are collected on the DTU val set.
 
 |           | resolution | n_views | abs_err | 1mm acc | 2mm acc    | 4mm acc    | GPU mem in GB <br> (train*/val) |
 | :---:     |  :---:     | :---:   | :---:   |  :---:  | :---:      | :---:      | :---:   |
-| Paper     |  1152x864  | 5       | N/A     | N/A     | 82.6%      | 88.8%      | N/A / 5.3 |
+| Paper     |  1152x864  | 5       | N/A     | N/A     | 82.6%      | 88.8%      | 10.0 / 5.3 |
 | This repo <br> (same as paper) |  640x512   | 3       | 4.524mm | 72.33%  | 84.35%     | 90.52%     | 8.5 / 2.1 |
 | This repo <br> (gwc**) |  640x512  | 3       | **4.242mm**| **73.99%** | **85.85%** | **91.57%**    | **6.5 / 2.1** |
 
