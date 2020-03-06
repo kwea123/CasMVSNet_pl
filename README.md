@@ -33,6 +33,7 @@ Download the preprocessed [DTU training data](https://drive.google.com/file/d/1e
 
 ## Training model
 
+### DTU dataset
 Run (example)
 ```
 python train.py \
@@ -47,11 +48,11 @@ Note that the model consumes huge GPU memory, so the batch size is generally sma
 
 See [opt.py](opt.py) for all configurations.
 
-## Example training log
+### Example training log
 ![log1](assets/log1.png)
 ![log2](assets/log2.png)
 
-## Metrics
+### Metrics
 The metrics are collected on the DTU val set.
 
 |           | resolution | n_views | abs_err | 1mm acc | 2mm acc    | 4mm acc    | GPU mem in GB <br> (train*/val) |
@@ -64,9 +65,13 @@ The metrics are collected on the DTU val set.
 
 **Gwc with `num_groups=8` with parameters `--depth_interval 2.0 --interval_ratios 1.0 2.5 5.5 --num_epochs 50`, see [update](#update) 1. This implementation aims at maintaining the concept of cascade cost volume, and build new operations to further increase the accuracy or to decrease inference time/GPU memory.
 
-## Pretrained model and log
+### Pretrained model and log
 Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases/tag/v1.0).
 The above metrics of `This repo (same as paper)` correspond to this training but the model is saved on the 10th epoch (least `val_loss` but not the best in other metrics).
+
+## BlendedMVS
+
+Training on [BlendedMVS](https://github.com/YoYo000/BlendedMVS) code, to be updated.
 
 ## Some code tricks
 
