@@ -18,7 +18,7 @@ Download [preprocessed files](https://drive.google.com/file/d/1YArOJaX9WVLJh4757
 
 ## Depth fusion
 
-Run
+From the base directory of this repo, run
 ```
 python eval.py \
   --dataset_name $DATASET
