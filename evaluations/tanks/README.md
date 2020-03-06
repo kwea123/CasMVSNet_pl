@@ -1,41 +1,18 @@
-Here I provide the description of the general depth fusion method. The same method is applied for all datasets, if not specified otherwise, the testing uses the default parameters in `eval.py`.
+# Quantitative evaluation
 
-# Depth fusion description
+1.  Prepare `.ply` files from depth fusion, and `.log` files from [preprocessed files](https://drive.google.com/file/d/1YArOJaX9WVLJh4757uE8AEREYkgszrCo/view).
+2.  Register at [tanks and temples](https://www.tanksandtemples.org/).
+3.  Follow their submission guidelines.
 
-The fusion code is heavily borrowed from [MVSNet_pytorch](https://github.com/xy-guo/MVSNet_pytorch/blob/master/eval.py) with refactoring and the following modifications (without careful investigations, I just think it looks better):
-1.  After the depth of the ref view is refined (this is original mvsnet method), I **use the refined depth** for the following runs (1 run=1 ref view and many src views). For example, depth of view 0 is refined in the first run, then the next run, for ref view 1, if it uses view 0 as src view, this time we don't use the original depth prediction, instead we use the refined depth of the previous run since it is generally better (average across many views).
-2.  When projecting points into 3d space, I observe that the color of the same point change a lot across views: this is partly due to non-lambertian sufaces such as metal reflection, but is hugely due to light angle difference bewteen views. Since it's an **indoor** dataset, the light angle changes a lot even with a small displacement, making shadows projected to different spaces. In order to alleviate this color inconsistency, in addition to depth average as suggested in the original paper, I also do **color average** to make the point cloud look more consistent.
+## Result
+|   | Mean   | Family | Francis | Horse  | Lighthouse | M60    | Panther | Playground | Train |
+|---|--------|--------|---------|--------|------------|--------|---------|------------|-------|
+|[Original](https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet)| 56.42  | 76.36  | 58.45   | 46.20  | 55.53	  | 56.11  | 54.02   | 58.17	  | 46.56 |
+|This repo| 55.12 | 76.39 |	52.78 |	49.06 |	53.69 |	56.23 |	52.00 |	50.22 |	50.62
 
-# Running depth fusion
+[Detailed results](https://www.tanksandtemples.org/details/827/)
 
-## Data download
+# Qualitative evaluation
 
-### DTU
-You need to download [full resolution image](http://roboimagedata2.compute.dtu.dk/data/MVS/Rectified.zip) and unzip to the same folder as your training data, if you want to test the model for higher resolution (I tested with 1152x864 to be aligned with the paper, but we are able to run full resolution 1600x1184 with 5 views, costing only 8.7GB GPU memory).
-
-### Tanks and temples
-Download [preprocessed files](https://drive.google.com/file/d/1YArOJaX9WVLJh4757uE8AEREYkgszrCo/view) from MVSNet, these files contains camera poses calculated by [COLMAP](https://github.com/colmap/colmap).
-
-## Depth fusion
-
-From the base directory of this repo, run
-```
-python eval.py \
-  --dataset_name $DATASET
-  --split test
-  --ckpt_path ckpts/exp2/_ckpt_epoch_10.ckpt
-  (--save_visual)
-```
-
-It will generate depth prediction files under folder `results/$DATASET/depth`; after the depth prediction for all images finished, it will perform depth fusion for all scans and generate `.ply` files under folder `results/$DATASET/points`.
-
-*  You can comment out the `# Step 1.` to do depth fusion only, after the depth prediction are generated.
-*  You can add `--scan {scan_number}` to only do depth fusion on specific scans (specify also the correct `--split`). Otherwise the default will process all scans in the `split`.
-
-# Visualization of point cloud
-
-From the base directory of this repo, run `python visualize_ply.py --dataset_name $DATASET --scan $SCAN`.
-
-# Quantitative and qualitative evaluation
-
-Please see each dataset subdirectory.
+A video of Train (click to link to YouTube):
+[![teaser](../../assets/train.gif)](https://youtu.be/5NkF6Xbe-1o)
