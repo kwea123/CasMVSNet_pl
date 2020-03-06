@@ -69,6 +69,8 @@ The metrics are collected on the DTU val set.
 Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases/tag/v1.0).
 The above metrics of `This repo (same as paper)` correspond to this training but the model is saved on the 10th epoch (least `val_loss` but not the best in other metrics).
 
+------------------------------------------------------------------------------------------------------------------------
+
 ### BlendedMVS
 
 Training on [BlendedMVS](https://github.com/YoYo000/BlendedMVS) code, to be updated.
