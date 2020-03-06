@@ -5,6 +5,9 @@
 3.  Follow their submission guidelines.
 
 ## Result
+
+### Intermediate
+
 |   | Mean   | Family | Francis | Horse  | Lighthouse | M60    | Panther | Playground | Train |
 |---|--------|--------|---------|--------|------------|--------|---------|------------|-------|
 |[Original](https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet)| 56.42  | 76.36  | 58.45   | 46.20  | 55.53	  | 56.11  | 54.02   | 58.17	  | 46.56 |
