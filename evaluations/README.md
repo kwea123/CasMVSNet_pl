@@ -27,6 +27,8 @@ python eval.py \
   (--save_visual)
 ```
 
+**IMPORTANT**: Currently the script consumes huge RAM. If you set `img_wh` to the max `(2048, 1056)`, it will require up to 20GB RAM if the number of views is about 300.
+
 It will generate depth prediction files under folder `results/$DATASET/depth`; after the depth prediction for all images finished, it will perform depth fusion for all scans and generate `.ply` files under folder `results/$DATASET/points`.
 
 *  You can comment out the `# Step 1.` to do depth fusion only, after the depth prediction are generated.
