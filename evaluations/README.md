@@ -16,6 +16,9 @@ You need to download [full resolution image](http://roboimagedata2.compute.dtu.d
 ### Tanks and temples
 Download [preprocessed files](https://drive.google.com/file/d/1YArOJaX9WVLJh4757uE8AEREYkgszrCo/view) from MVSNet, these files contains camera poses calculated by [COLMAP](https://github.com/colmap/colmap).
 
+### BlendedMVS
+Download files from [BlendedMVS](https://github.com/YoYo000/BlendedMVS) and mail the author for high-resolution images if you want (I use high-res images for evaluation).
+
 ## Depth fusion
 
 From the base directory of this repo, run
@@ -44,3 +47,4 @@ Please see each dataset subdirectory.
 
 * [DTU](dtu/)
 * [Tanks and Temples](tanks/)
+* [BlendedMVS](blendedmvs/)
