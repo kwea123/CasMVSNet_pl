@@ -79,5 +79,5 @@ Since MVS models consumes a lot of GPU memory, it is indispensable to do some co
 
 Please go to [evaluations](evaluations/) to see the general depth fusion method description, then go to dataset subdirectories for detailed results (qualitative and quantitative).
 
-A video showing the point cloud for scan9 in DTU in different angles (click to link to YouTube):
+A video showing the point cloud for scan9 in DTU in different angles and [me](https://github.com/kwea123/VTuber_Unity) (click to link to YouTube):
 [![teaser](assets/demo.gif)](https://youtu.be/wCjMoBR9Nh0)
