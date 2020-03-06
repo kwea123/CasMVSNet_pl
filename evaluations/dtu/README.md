@@ -1,10 +1,12 @@
 This folder contains the minimum necessary scripts for running DTU evaluation. You can download the full code [here](http://roboimagedata2.compute.dtu.dk/data/MVS/SampleSet.zip).
 
-## Install
+We assume that you have run the [depth fusion](../), and have the final `.ply` files for each scan.
+
+# Installation
 
 You need to have `Matlab`. It is a **must**, you cannot use workaround free software like `octave`, I tried but some libraries are not available (e.g. `KDTreeSearch`)
 
-## Data download
+# Data download
 
 1.  Download [Points](http://roboimagedata2.compute.dtu.dk/data/MVS/Points.zip) and [SampleSet](http://roboimagedata2.compute.dtu.dk/data/MVS/SampleSet.zip).
 2.  Extract the files and arrange in the following structure:
@@ -15,7 +17,7 @@ You need to have `Matlab`. It is a **must**, you cannot use workaround free soft
 ```
 Where the `ObsMask` folder is taken from `SampleSet/MVS Data`.
 
-## Evaluation
+# Qualitative evaluation
 
 1.  Change `dataPath`, `plyPath`, `resultsPath` [here](https://github.com/kwea123/CasMVSNet_pl/blob/784cec6635fa819bab0d716c15ba07972c260293/evaluations/dtu/BaseEvalMain_web.m#L8-L10). Be careful that you need to ensure `resultsPath` folder already exists because `Matlab` won't automatically create...
 2.  Open `Matlab` and run `BaseEvalMain_web.m`. It will compute the metrics for each scan specified [here](https://github.com/kwea123/CasMVSNet_pl/blob/master/evaluations/dtu/BaseEvalMain_web.m#L23). This step will take **A VERY LONG TIME**: for the point cloud I provide, each of them takes **~20mins** to evaluate... the time depends on the point cloud size.
@@ -39,3 +41,26 @@ Since it takes a long time to evaluate (5 hours using default settings...), I pr
 1. The number of views used is 5 for all methods.
 2. *Methods' metrics are verified by me using their pretrained model, or the point cloud directly for R-MVSNet.
 3. Generally, larger resolution leads to better result.
+
+# Qualitative evaluation
+
+This part is just visualization of the point cloud, you can do without above quantitative evaluation.
+
+## Demo for scan9
+I provide the fusion result for **all 119 scans** with the default parameters in `eval.py` in [release](https://github.com/kwea123/CasMVSNet_pl/releases/). Download and put them under `results/dtu/points`. A sample viewpoint (put under `results/dtu/`) `viewpoint.json` is also provided: add `--use_viewpoint` to use the same viewpoint to do comparison between scans/different fusion approaches! You can also save your own viewpoint by `--save_viewpoint`.
+
+The default viewpoint looks like:
+![teaser](../../assets/demo.png)
+
+Comparison between some open source methods:
+<p align="center">
+  <img src="../../assets/cascade.png", width="48%">
+  <img src="../../assets/rmvsnet.png", width="48%">
+  <br>
+  <img src="../../assets/pmvsnet.png", width="48%">
+  <img src="../../assets/demo.png", width="48%">
+  <br>
+  <sup>Top left: 
+     <a href="https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet">Original casmvsnet</a> Top right: <a href="https://github.com/YoYo000/MVSNet">R-MVSNet</a> Bottom left: <a href="https://github.com/callmeray/PointMVSNet">PointMVSNet</a> Bottom right: This repo
+  </sup>
+</p>
