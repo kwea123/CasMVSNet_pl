@@ -36,6 +36,6 @@ It will generate depth prediction files under folder `results/$DATASET/depth`; a
 
 Run `python visualize_ply.py --dataset_name $DATASET --scan $SCAN`.
 
-# Quantitative evaluation
+# Quantitative and qualitative evaluation
 
 Please see each dataset subdirectory.
