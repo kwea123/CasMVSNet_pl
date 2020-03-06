@@ -8,6 +8,16 @@ The fusion code is heavily borrowed from [MVSNet_pytorch](https://github.com/xy-
 
 # Running depth fusion
 
+## Data download
+
+### DTU
+You need to download [full resolution image](http://roboimagedata2.compute.dtu.dk/data/MVS/Rectified.zip) and unzip to the same folder as your training data, if you want to test the model for higher resolution (I tested with 1152x864 to be aligned with the paper, but we are able to run full resolution 1600x1184 with 5 views, costing only 8.7GB GPU memory).
+
+### Tanks and temples
+Download [preprocessed files](https://drive.google.com/file/d/1YArOJaX9WVLJh4757uE8AEREYkgszrCo/view) from MVSNet, these files contains camera poses calculated by [COLMAP](https://github.com/colmap/colmap).
+
+## Depth fusion
+
 Run
 ```
 python eval.py \
