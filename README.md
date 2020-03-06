@@ -8,11 +8,8 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
 ### Update
 
 1.  Implement groupwise correlation in [Learning Inverse Depth Regression for Multi-View Stereowith Correlation Cost Volume](https://arxiv.org/abs/1912.11746). It achieves almost the same result as original variance-based cost volume, but with fewer parameters and consumes lower memory, so it is highly recommended to use (in contrast, the inverse depth sampling in that paper turns out to have no effect in my experiments, maybe because DTU is indoor dataset, and inverse depth improves outdoor dataset better). To activate, set `--num_groups 8` in training.
+2.  Add [Tanks and temples](https://www.tanksandtemples.org/) evaluation!
 
-2.  Since MVS models consumes a lot of GPU memory, it is indispensable to do some code tricks to reduce GPU memory consumption. I tried the followings:
-    *  Replace `BatchNorm+Relu` with [Inplace-ABN](https://github.com/mapillary/inplace_abn): Reduce the memory by ~15%!
-    *  `del` the tensor when it is never accessed later: Only helps a little.
-    *  Use `a = a+b` in training and `a += b` in testing: Reduce about 300MB (don't know the reason..)
 
 # Installation
 
@@ -71,46 +68,16 @@ The metrics are collected on the DTU val set.
 Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases/tag/v1.0).
 The above metrics of `This repo (same as paper)` correspond to this training but the model is saved on the 10th epoch (least `val_loss` but not the best in other metrics).
 
+## Some code tricks
+
+Since MVS models consumes a lot of GPU memory, it is indispensable to do some code tricks to reduce GPU memory consumption. I tried the followings:
+*  Replace `BatchNorm+Relu` with [Inplace-ABN](https://github.com/mapillary/inplace_abn): Reduce the memory by ~15%!
+*  `del` the tensor when it is never accessed later: Only helps a little.
+*  Use `a = a+b` in training and `a += b` in testing: Reduce about 300MB (don't know the reason..)
+
 # Testing
 
-## Data download
-You need to download [full resolution image](http://roboimagedata2.compute.dtu.dk/data/MVS/Rectified.zip) and unzip to the same folder as your training data, if you want to test the model for higher resolution (I tested with 1152x864 to be aligned with the paper, but we are able to run full resolution 1600x1184 with 5 views, costing only 8.7GB GPU memory).
+Please go to [evaluations](evaluations/) to see the general depth fusion method description, then go to dataset subdirectories for detailed results (qualitative and quantitative).
 
-## Testing model
-For testing depth prediction with val/test set, please see `test.ipynb`.
-
-For depth fusion, run `python eval.py --split test --ckpt_path ckpts/exp2/_ckpt_epoch_10.ckpt (--save_visual)`. It will generate depth prediction files under folder `results/depth`; after the depth prediction for all images finished, it will perform depth fusion for all scans and generate `.ply` files under folder `results/points`.
-
-*  You can comment out the `# Step 1.` to do depth fusion only, after the depth prediction are generated.
-*  You can add `--scan {scan_number}` to only do depth fusion on specific scans (specify also the correct `--split`). Otherwise the default will process all scans in the `split`.
-*  The speed for one scan is about 80s: 40s for depth prediction of 49 ref views and 40s of depth fusion.
-
-The fusion code is heavily borrowed from [MVSNet_pytorch](https://github.com/xy-guo/MVSNet_pytorch/blob/master/eval.py) with refactoring and the following modifications (without careful investigations, I just think it looks better):
-1.  After the depth of the ref view is refined (this is original mvsnet method), I **use the refined depth** for the following runs (1 run=1 ref view and many src views). For example, depth of view 0 is refined in the first run, then the next run, for ref view 1, if it uses view 0 as src view, this time we don't use the original depth prediction, instead we use the refined depth of the previous run since it is generally better (average across many views).
-2.  When projecting points into 3d space, I observe that the color of the same point change a lot across views: this is partly due to non-lambertian sufaces such as metal reflection, but is hugely due to light angle difference bewteen views. Since it's an **indoor** dataset, the light angle changes a lot even with a small displacement, making shadows projected to different spaces. In order to alleviate this color inconsistency, in addition to depth average as suggested in the original paper, I also do **color average** to make the point cloud look more consistent.
-
-Finally, to visualize the point cloud, run `python visualize_ply.py --scan {scan_number}`.
-
-For the metrics of DTU evaluation, please see [evaluation/dtu/](https://github.com/kwea123/CasMVSNet_pl/tree/master/evaluations/dtu), where summarized some comparisons.
-
-## Demo for scan9
-I provide the fusion result for **all 119 scans** with the default parameters in `eval.py` in [release](https://github.com/kwea123/CasMVSNet_pl/releases/). Download and put them under `results/points`. A sample viewpoint (put under `results/`) `viewpoint.json` is also provided: add `--use_viewpoint` to use the same viewpoint to do comparison between scans/different fusion approaches! You can also save your own viewpoint by `--save_viewpoint`.
-
-The default viewpoint looks like:
-![teaser](assets/demo.png)
-
-Comparison between some open source methods:
-<p align="center">
-  <img src="assets/cascade.png", width="48%">
-  <img src="assets/rmvsnet.png", width="48%">
-  <br>
-  <img src="assets/pmvsnet.png", width="48%">
-  <img src="assets/demo.png", width="48%">
-  <br>
-  <sup>Top left: 
-     <a href="https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet">Original casmvsnet</a> Top right: <a href="https://github.com/YoYo000/MVSNet">R-MVSNet</a> Bottom left: <a href="https://github.com/callmeray/PointMVSNet">PointMVSNet</a> Bottom right: This repo
-  </sup>
-</p>
-
-Also a video showing the point cloud in different angles (click to link to YouTube):
+A video showing the point cloud for scan9 in DTU in different angles (click to link to YouTube):
 [![teaser](assets/demo.gif)](https://youtu.be/wCjMoBR9Nh0)
