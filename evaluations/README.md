@@ -34,7 +34,7 @@ It will generate depth prediction files under folder `results/$DATASET/depth`; a
 
 # Visualization of point cloud
 
-Run `python visualize_ply.py --dataset_name $DATASET --scan $SCAN`.
+From the base directory of this repo, run `python visualize_ply.py --dataset_name $DATASET --scan $SCAN`.
 
 # Quantitative and qualitative evaluation
 
