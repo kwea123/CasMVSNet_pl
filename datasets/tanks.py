@@ -3,12 +3,13 @@ from .utils import read_pfm
 import os
 import numpy as np
 import cv2
+from collections import defaultdict
 from PIL import Image
 import torch
 from torchvision import transforms as T
 
 class TanksDataset(Dataset):
-    def __init__(self, root_dir, split='test', n_views=3, levels=3, depth_interval=-1,
+    def __init__(self, root_dir, split='intermediate', n_views=3, levels=3, depth_interval=-1,
                  img_wh=(1152, 864)):
         """
         For testing only! You can write training data loader by yourself.
@@ -18,7 +19,7 @@ class TanksDataset(Dataset):
         self.img_wh = img_wh
         assert img_wh[0]%32==0 and img_wh[1]%32==0, \
             'img_wh must both be multiples of 32!'
-        self.depth_interval_ = depth_interval
+        self.split = split
         self.build_metas()
         self.n_views = n_views
         self.levels = levels # FPN levels
@@ -27,40 +28,57 @@ class TanksDataset(Dataset):
 
     def build_metas(self):
         self.metas = []
-        self.scans = ['Family', 'Francis', 'Horse', 'Lighthouse',
-                      'M60', 'Panther', 'Playground', 'Train']
-        self.image_sizes = {'Family': (1920, 1080),
-                            'Francis': (1920, 1080),
-                            'Horse': (1920, 1080),
-                            'Lighthouse': (2048, 1080),
-                            'M60': (2048, 1080),
-                            'Panther': (2048, 1080),
-                            'Playground': (1920, 1080),
-                            'Train': (1920, 1080)}
-        self.depth_interval = {'Family': 2.5e-3,
-                               'Francis': 1e-2,
-                               'Horse': 1.5e-3,
-                               'Lighthouse': 1.5e-2,
-                               'M60': 5e-3,
-                               'Panther': 5e-3,
-                               'Playground': 7e-3,
-                               'Train': 5e-3} # depth interval for each scan (hand tuned)
-        self.num_viewpoint_per_scan = {}
+        if self.split == 'intermediate':
+            self.scans = ['Family', 'Francis', 'Horse', 'Lighthouse',
+                          'M60', 'Panther', 'Playground', 'Train']
+            self.image_sizes = {'Family': (1920, 1080),
+                                'Francis': (1920, 1080),
+                                'Horse': (1920, 1080),
+                                'Lighthouse': (2048, 1080),
+                                'M60': (2048, 1080),
+                                'Panther': (2048, 1080),
+                                'Playground': (1920, 1080),
+                                'Train': (1920, 1080)}
+            self.depth_interval = {'Family': 2.5e-3,
+                                   'Francis': 1e-2,
+                                   'Horse': 1.5e-3,
+                                   'Lighthouse': 1.5e-2,
+                                   'M60': 5e-3,
+                                   'Panther': 5e-3,
+                                   'Playground': 7e-3,
+                                   'Train': 5e-3} # depth interval for each scan (hand tuned)
+        elif self.split == 'advanced':
+            self.scans = ['Auditorium', 'Ballroom', 'Courtroom',
+                          'Museum', 'Palace', 'Temple'][5:6]
+            self.image_sizes = {'Auditorium': (1920, 1080),
+                                'Ballroom': (1920, 1080),
+                                'Courtroom': (1920, 1080),
+                                'Museum': (1920, 1080),
+                                'Palace': (1920, 1080),
+                                'Temple': (1920, 1080)}
+            self.depth_interval = {'Auditorium': 3e-2,
+                                   'Ballroom': 2e-2,
+                                   'Courtroom': 2e-2,
+                                   'Museum': 2e-2,
+                                   'Palace': 1e-2,
+                                   'Temple': 1e-2} # depth interval for each scan (hand tuned)
+        self.ref_views_per_scan = defaultdict(list)
 
         for scan in self.scans:
             with open(os.path.join(self.root_dir, scan, 'pair.txt')) as f:
-                self.num_viewpoint_per_scan[scan] = num_viewpoint = int(f.readline())
+                num_viewpoint = int(f.readline())
                 for _ in range(num_viewpoint):
                     ref_view = int(f.readline().rstrip())
                     src_views = [int(x) for x in f.readline().rstrip().split()[1::2]]
-                    self.metas += [(scan, ref_view, src_views)]
+                    self.metas += [(scan, -1, ref_view, src_views)]
+                    self.ref_views_per_scan[scan] += [ref_view]
 
     def build_proj_mats(self):
         self.proj_mats = {} # proj mats for each scan
         for scan in self.scans:
+            self.proj_mats[scan] = {}
             img_w, img_h = self.image_sizes[scan]
-            proj_mats = []
-            for vid in range(self.num_viewpoint_per_scan[scan]):
+            for vid in self.ref_views_per_scan[scan]:
                 proj_mat_filename = os.path.join(self.root_dir, scan,
                                                  f'cams/{vid:08d}_cam.txt')
                 intrinsics, extrinsics, depth_min = \
@@ -78,8 +96,7 @@ class TanksDataset(Dataset):
                     proj_mat_ls += [torch.FloatTensor(proj_mat_l)]
                 # (self.levels, 4, 4) from fine to coarse
                 proj_mat_ls = torch.stack(proj_mat_ls[::-1])
-                proj_mats += [(proj_mat_ls, depth_min)]
-            self.proj_mats[scan] = proj_mats
+                self.proj_mats[scan][vid] = (proj_mat_ls, depth_min)
 
     def read_cam_file(self, filename):
         with open(filename) as f:
@@ -105,7 +122,7 @@ class TanksDataset(Dataset):
 
     def __getitem__(self, idx):
         sample = {}
-        scan, ref_view, src_views = self.metas[idx]
+        scan, _, ref_view, src_views = self.metas[idx]
         # use only the reference view and first nviews-1 source views
         view_ids = [ref_view] + src_views[:self.n_views-1]
 
@@ -123,7 +140,8 @@ class TanksDataset(Dataset):
 
             if i == 0:  # reference view
                 ref_proj_inv = torch.inverse(proj_mat_ls)
-                sample['depth_interval'] = self.depth_interval[scan]
+                sample['init_depth_min'] = torch.FloatTensor([depth_min])
+                sample['depth_interval'] = torch.FloatTensor([self.depth_interval[scan]])
             else:
                 proj_mats += [proj_mat_ls @ ref_proj_inv]
 
@@ -132,7 +150,6 @@ class TanksDataset(Dataset):
 
         sample['imgs'] = imgs
         sample['proj_mats'] = proj_mats
-        sample['init_depth_min'] = depth_min
         sample['scan_vid'] = (scan, ref_view)
 
         return sample

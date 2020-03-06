@@ -130,7 +130,7 @@ class DTUDataset(Dataset):
         return masks
 
     def define_transforms(self):
-        if self.split == 'train':
+        if self.split == 'train': # you can add augmentation here
             self.transform = T.Compose([T.ToTensor(),
                                         T.Normalize(mean=[0.485, 0.456, 0.406], 
                                                     std=[0.229, 0.224, 0.225]),
@@ -174,6 +174,7 @@ class DTUDataset(Dataset):
             proj_mat_ls, depth_min = self.proj_mats[vid]
 
             if i == 0:  # reference view
+                sample['init_depth_min'] = torch.FloatTensor([depth_min])
                 masks = self.read_mask(mask_filename)
                 depths = self.read_depth(depth_filename)
                 ref_proj_inv = torch.inverse(proj_mat_ls)
@@ -187,8 +188,7 @@ class DTUDataset(Dataset):
         sample['proj_mats'] = proj_mats
         sample['depths'] = depths
         sample['masks'] = masks
-        sample['init_depth_min'] = depth_min
-        sample['depth_interval'] = self.depth_interval
+        sample['depth_interval'] = torch.FloatTensor([self.depth_interval])
 
         if self.img_wh is not None:
             sample['scan_vid'] = (scan, ref_view)
