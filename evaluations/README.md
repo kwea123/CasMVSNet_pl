@@ -39,3 +39,6 @@ From the base directory of this repo, run `python visualize_ply.py --dataset_nam
 # Quantitative and qualitative evaluation
 
 Please see each dataset subdirectory.
+
+* [DTU](dtu/)
+* [Tanks and Temples](tanks/)
