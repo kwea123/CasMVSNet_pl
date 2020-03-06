@@ -183,6 +183,7 @@ class CascadeMVSNet(nn.Module):
                                                         device=prob_volume.device,
                                                         dtype=prob_volume.dtype)
                                           ).long() # (B, h, w)
+            depth_index = torch.clamp(depth_index, 0, D-1)
             # the confidence is the 4-sum probability at this index
             confidence = torch.gather(prob_volume_sum4, 1, 
                                       depth_index.unsqueeze(1)).squeeze(1) # (B, h, w)

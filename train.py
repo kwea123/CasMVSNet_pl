@@ -4,7 +4,7 @@ import torch
 
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
-from datasets.dtu import DTUDataset
+from datasets import dataset_dict
 
 # models
 from models.mvsnet import CascadeMVSNet
@@ -152,11 +152,12 @@ class MVSSystem(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
-        train_dataset = DTUDataset(root_dir=self.hparams.root_dir,
-                                   split='train',
-                                   n_views=self.hparams.n_views,
-                                   levels=self.hparams.levels,
-                                   depth_interval=self.hparams.depth_interval)
+        dataset = dataset_dict[self.hparams.dataset_name]
+        train_dataset = dataset(root_dir=self.hparams.root_dir,
+                                split='train',
+                                n_views=self.hparams.n_views,
+                                levels=self.hparams.levels,
+                                depth_interval=self.hparams.depth_interval)
         if self.hparams.num_gpus > 1:
             sampler = DistributedSampler(train_dataset)
         else:
@@ -170,11 +171,12 @@ class MVSSystem(pl.LightningModule):
 
     @pl.data_loader
     def val_dataloader(self):
-        val_dataset = DTUDataset(root_dir=self.hparams.root_dir,
-                                 split='val',
-                                 n_views=self.hparams.n_views,
-                                 levels=self.hparams.levels,
-                                 depth_interval=self.hparams.depth_interval)
+        dataset = dataset_dict[self.hparams.dataset_name]
+        val_dataset = dataset(root_dir=self.hparams.root_dir,
+                              split='val',
+                              n_views=self.hparams.n_views,
+                              levels=self.hparams.levels,
+                              depth_interval=self.hparams.depth_interval)
         if self.hparams.num_gpus > 1:
             sampler = DistributedSampler(val_dataset)
         else:

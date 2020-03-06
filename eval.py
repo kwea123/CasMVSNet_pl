@@ -1,4 +1,4 @@
-from datasets.dtu import DTUDataset
+from datasets import dataset_dict
 from datasets.utils import save_pfm, read_pfm
 import cv2
 import torch
@@ -21,13 +21,23 @@ torch.backends.cudnn.benchmark = True # this increases inference speed a little
 def get_opts():
     parser = ArgumentParser()
     parser.add_argument('--root_dir', type=str,
-                        default='/home/ubuntu/data/mvs_training/dtu/',
+                        default='/home/ubuntu/data/DTU/mvs_training/dtu/',
                         help='root directory of dtu dataset')
+    parser.add_argument('--dataset_name', type=str, default='dtu',
+                        choices=['dtu', 'tanks'],
+                        help='which dataset to train/val')
     parser.add_argument('--split', type=str,
                         default='test', choices=['train', 'val', 'test'],
                         help='which split to evaluate')
     parser.add_argument('--scans', nargs="+", type=int, default=[],
-                        help='specify scans to evaluate (must be in the split)')
+                        help='''only for dtu dataset.
+                                specify scans to evaluate (must be in the split)
+                             ''')
+    parser.add_argument('--cpu', default=False, action='store_true',
+                        help='''use cpu to do depth inference.
+                                WARNING: It is going to be EXTREMELY SLOW!
+                                about 37s/view, so in total 30min/scan. 
+                             ''')
     # for depth prediction
     parser.add_argument('--n_views', type=int, default=5,
                         help='number of views (including ref) to be used in testing')
@@ -64,14 +74,29 @@ def get_opts():
 def decode_batch(batch):
     imgs = batch['imgs']
     proj_mats = batch['proj_mats']
-    depths = batch['depths']
-    masks = batch['masks']
     init_depth_min = batch['init_depth_min']
     depth_interval = batch['depth_interval']
     scan, vid = batch['scan_vid']
-    return imgs, proj_mats, depths, masks, \
-           init_depth_min, depth_interval, \
+    return imgs, proj_mats, init_depth_min, depth_interval, \
            scan, vid
+
+
+# define read_image and read_proj_mat for each dataset
+
+def read_image(dataset_name, root_dir, scan, vid):
+    if dataset_name == 'dtu':
+        return cv2.imread(os.path.join(root_dir,
+                    f'Rectified/{scan}/rect_{vid+1:03d}_3_r5000.png'))
+    if dataset_name == 'tanks':
+        return cv2.imread(os.path.join(root_dir, scan,
+                    f'images/{vid:08d}.jpg'))
+
+
+def read_proj_mat(dataset_name, dataset, scan, vid):
+    if dataset_name == 'dtu':
+        return dataset.proj_mats[vid][0][0].numpy()
+    if dataset_name == 'tanks':
+        return dataset.proj_mats[scan][vid][0][0].numpy()
 
 
 @jit(nopython=True, fastmath=True)
@@ -148,9 +173,10 @@ def check_geo_consistency(depth_ref, P_world2ref,
 
 if __name__ == "__main__":
     args = get_opts()
-    dataset = DTUDataset(args.root_dir, args.split,
-                         n_views=args.n_views, depth_interval=args.depth_interval,
-                         img_wh=tuple(args.img_wh))
+    dataset = dataset_dict[args.dataset_name] \
+                (args.root_dir, args.split,
+                 n_views=args.n_views, depth_interval=args.depth_interval,
+                 img_wh=tuple(args.img_wh))
 
     if args.scans:
         scans = [f'scan{scan}' for scan in args.scans]
@@ -161,11 +187,13 @@ if __name__ == "__main__":
     model = CascadeMVSNet(n_depths=args.n_depths,
                           interval_ratios=args.interval_ratios,
                           num_groups=args.num_groups,
-                          norm_act=ABN).cuda()
+                          norm_act=ABN)
+    device = 'cpu' if args.cpu else 'cuda:0'
+    model.to(device)
     load_ckpt(model, args.ckpt_path)
     model.eval()
 
-    depth_dir = 'results/depth'
+    depth_dir = f'results/{args.dataset_name}/depth'
     print('Creating depth and confidence predictions...')
     if args.scans:
         data_range = []
@@ -175,22 +203,26 @@ if __name__ == "__main__":
     else:
         data_range = range(len(dataset))
     for i in tqdm(data_range):
-        imgs, proj_mats, depths, masks, init_depth_min, depth_interval, \
+        imgs, proj_mats, init_depth_min, depth_interval, \
             scan, vid = decode_batch(dataset[i])
         
         os.makedirs(os.path.join(depth_dir, scan), exist_ok=True)
 
         with torch.no_grad():
-            imgs = imgs.unsqueeze(0).cuda()
-            proj_mats = proj_mats.unsqueeze(0).cuda()
+            imgs = imgs.unsqueeze(0).to(device)
+            proj_mats = proj_mats.unsqueeze(0).to(device)
             results = model(imgs, proj_mats, init_depth_min, depth_interval)
         
         depth = results['depth_0'][0].cpu().numpy()
+        depth = np.nan_to_num(depth) # change nan to 0
         proba = results['confidence_2'][0].cpu().numpy() # NOTE: this is 1/4 scale!
+        proba = np.nan_to_num(proba) # change nan to 0
         save_pfm(os.path.join(depth_dir, f'{scan}/depth_{vid:04d}.pfm'), depth)
         save_pfm(os.path.join(depth_dir, f'{scan}/proba_{vid:04d}.pfm'), proba)
         if args.save_visual:
-            depth = (depth-depth.min())/(depth.max()-depth.min())
+            mi = np.min(depth[depth>0])
+            ma = np.max(depth)
+            depth = (depth-mi)/(ma-mi+1e-8)
             depth = (255*depth).astype(np.uint8)
             depth_img = cv2.applyColorMap(depth, cv2.COLORMAP_JET)
             cv2.imwrite(os.path.join(depth_dir, f'{scan}/depth_visual_{vid:04d}.jpg'),
@@ -203,7 +235,7 @@ if __name__ == "__main__":
     ###################################################################################
 
     # Step 2. Perform depth filtering and fusion
-    point_dir = 'results/points'
+    point_dir = f'results/{args.dataset_name}/points'
     os.makedirs(point_dir, exist_ok=True)
     print('Fusing point clouds...')
     
@@ -214,41 +246,42 @@ if __name__ == "__main__":
         v_colors = []
         # buffers storing the refined data of each ref view
         depth_refined = {}
-        image_refined = {}
+        image_refined = {} # store image of 1/2 scale
         for ref_vid, meta in tqdm(enumerate(filter(lambda x: x[0]==scan, dataset.metas))):
             if ref_vid in image_refined: # not yet refined actually
-                image_ref = image_refined[ref_vid]
+                image_ref = cv2.resize(image_refined[ref_vid], None, fx=2, fy=2)
                 depth_ref = depth_refined[ref_vid]
             else:
-                image_ref = cv2.imread(os.path.join(args.root_dir,
-                                       f'Rectified/{scan}/rect_{ref_vid+1:03d}_3_r5000.png'))
+                image_ref = read_image(args.dataset_name, args.root_dir, scan, ref_vid)
                 image_ref = cv2.resize(image_ref, tuple(args.img_wh),
                                        interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
-                depth_ref = read_pfm(f'results/depth/{scan}/depth_{ref_vid:04d}.pfm')[0]
-            proba_ref = read_pfm(f'results/depth/{scan}/proba_{ref_vid:04d}.pfm')[0]
+                depth_ref = read_pfm(f'results/{args.dataset_name}/depth/' \
+                                     f'{scan}/depth_{ref_vid:04d}.pfm')[0]
+            proba_ref = read_pfm(f'results/{args.dataset_name}/depth/' \
+                                 f'{scan}/proba_{ref_vid:04d}.pfm')[0]
             proba_ref = cv2.resize(proba_ref, None, fx=4, fy=4,
                                    interpolation=cv2.INTER_LINEAR)
             mask_conf = proba_ref > args.conf # confidence mask
-            P_world2ref = dataset.proj_mats[ref_vid][0][0].numpy()
+            P_world2ref = read_proj_mat(args.dataset_name, dataset, scan, ref_vid)
             
-            src_vids = meta[3]
+            src_vids = meta[-1]
             mask_geos = []
             depth_ref_reprojs = [depth_ref]
             image_src2refs = [image_ref]
             # for each src view, check the consistency and refine depth
             for src_vid in src_vids:
                 if src_vid in depth_refined: # use refined data of previous runs
-                    image_src = image_refined[src_vid]
+                    image_src = cv2.resize(image_refined[src_vid], None, fx=2, fy=2)
                     depth_src = depth_refined[src_vid]
                 else:
-                    image_src = cv2.imread(os.path.join(args.root_dir,
-                                       f'Rectified/{scan}/rect_{src_vid+1:03d}_3_r5000.png'))
+                    image_src = read_image(args.dataset_name, args.root_dir, scan, src_vid)
                     image_src = cv2.resize(image_src, tuple(args.img_wh),
                                        interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
-                    depth_src = read_pfm(f'results/depth/{scan}/depth_{src_vid:04d}.pfm')[0]
-                    image_refined[src_vid] = image_src
+                    depth_src = read_pfm(f'results/{args.dataset_name}/depth/' \
+                                         f'{scan}/depth_{src_vid:04d}.pfm')[0]
+                    image_refined[src_vid] = cv2.resize(image_src, None, fx=0.5, fy=0.5)
                     depth_refined[src_vid] = depth_src
-                P_world2src = dataset.proj_mats[src_vid][0][0].numpy()
+                P_world2src = read_proj_mat(args.dataset_name, dataset, scan, src_vid)
                 depth_ref_reproj, mask_geo, image_src2ref = \
                     check_geo_consistency(depth_ref, P_world2ref,
                                           depth_src, P_world2src,
@@ -260,15 +293,16 @@ if __name__ == "__main__":
             mask_geo_final = mask_geo_sum >= args.min_geo_consistent
             depth_refined[ref_vid] = \
                 (np.sum(depth_ref_reprojs, 0)/(mask_geo_sum+1)).astype(np.float32)
-            image_refined[ref_vid] = \
+            image_refined_ = \
                 np.sum(image_src2refs, 0)/np.expand_dims((mask_geo_sum+1), -1)
+            image_refined[ref_vid] = cv2.resize(image_refined_, None, fx=0.5, fy=0.5)
             mask_final = mask_conf & mask_geo_final
             
             # create the final points
             xy_ref = np.mgrid[:args.img_wh[1],:args.img_wh[0]][::-1]
             xyz_ref = np.vstack((xy_ref, np.ones_like(xy_ref[:1]))) * depth_refined[ref_vid]
             xyz_ref = xyz_ref.transpose(1,2,0)[mask_final].T # (3, N)
-            color = image_refined[ref_vid][mask_final] # (N, 3)
+            color = image_refined_[mask_final] # (N, 3)
             xyz_ref_h = np.vstack((xyz_ref, np.ones_like(xyz_ref[:1])))
             xyz_world = (np.linalg.inv(P_world2ref) @ xyz_ref_h).T # (N, 4)
             xyz_world = xyz_world[::args.skip, :3]
@@ -293,6 +327,9 @@ if __name__ == "__main__":
 
         el = PlyElement.describe(vertex_all, 'vertex')
         PlyData([el]).write(f'{point_dir}/{scan}.ply')
+        del vertex_all, vs, v_colors
+        image_refined.clear()
+        depth_refined.clear()
 
 
     print('Done!')
