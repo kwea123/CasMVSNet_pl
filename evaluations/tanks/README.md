@@ -16,3 +16,5 @@
 
 A video of Train (click to link to YouTube):
 [![teaser](../../assets/train.gif)](https://youtu.be/5NkF6Xbe-1o)
+
+Due to the large size of point cloud (some containing >100M points!), I only put part of them in [release](https://github.com/kwea123/CasMVSNet_pl/releases).
