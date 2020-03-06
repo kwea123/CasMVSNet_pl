@@ -24,10 +24,9 @@ def get_opts():
                         default='/home/ubuntu/data/DTU/mvs_training/dtu/',
                         help='root directory of dtu dataset')
     parser.add_argument('--dataset_name', type=str, default='dtu',
-                        choices=['dtu', 'tanks'],
+                        choices=['dtu', 'tanks', 'blendedmvs'],
                         help='which dataset to train/val')
-    parser.add_argument('--split', type=str,
-                        default='test', choices=['train', 'val', 'test'],
+    parser.add_argument('--split', type=str, default='test',
                         help='which split to evaluate')
     parser.add_argument('--scans', nargs="+", type=int, default=[],
                         help='''only for dtu dataset.
@@ -74,8 +73,8 @@ def get_opts():
 def decode_batch(batch):
     imgs = batch['imgs']
     proj_mats = batch['proj_mats']
-    init_depth_min = batch['init_depth_min']
-    depth_interval = batch['depth_interval']
+    init_depth_min = batch['init_depth_min'].item()
+    depth_interval = batch['depth_interval'].item()
     scan, vid = batch['scan_vid']
     return imgs, proj_mats, init_depth_min, depth_interval, \
            scan, vid
@@ -90,12 +89,15 @@ def read_image(dataset_name, root_dir, scan, vid):
     if dataset_name == 'tanks':
         return cv2.imread(os.path.join(root_dir, scan,
                     f'images/{vid:08d}.jpg'))
+    if dataset_name == 'blendedmvs':
+        return cv2.imread(os.path.join(root_dir, scan,
+                    f'blended_images/{vid:08d}.jpg'))
 
 
 def read_proj_mat(dataset_name, dataset, scan, vid):
     if dataset_name == 'dtu':
         return dataset.proj_mats[vid][0][0].numpy()
-    if dataset_name == 'tanks':
+    if dataset_name in ['tanks', 'blendedmvs']:
         return dataset.proj_mats[scan][vid][0][0].numpy()
 
 
@@ -195,7 +197,7 @@ if __name__ == "__main__":
 
     depth_dir = f'results/{args.dataset_name}/depth'
     print('Creating depth and confidence predictions...')
-    if args.scans:
+    if args.scans: # TODO: adapt scan specification to tanks and blendedmvs
         data_range = []
         for scan in scans:
             idx = dataset.scans.index(scan)
@@ -240,21 +242,22 @@ if __name__ == "__main__":
     print('Fusing point clouds...')
     
     for scan in scans:
-        print(f'Processing {scan}...')
+        print(f'Processing {scan} ...')
         # buffers for the final vertices of this scan
         vs = []
         v_colors = []
         # buffers storing the refined data of each ref view
         depth_refined = {}
-        image_refined = {} # store image of 1/2 scale
-        for ref_vid, meta in tqdm(enumerate(filter(lambda x: x[0]==scan, dataset.metas))):
+        image_refined = {} # store image of 1/4 scale
+        for meta in tqdm(list(filter(lambda x: x[0]==scan, dataset.metas))):
+            ref_vid = meta[2]
             if ref_vid in image_refined: # not yet refined actually
-                image_ref = cv2.resize(image_refined[ref_vid], None, fx=2, fy=2)
+                image_ref = cv2.resize(image_refined[ref_vid], None, fx=4, fy=4)
                 depth_ref = depth_refined[ref_vid]
             else:
                 image_ref = read_image(args.dataset_name, args.root_dir, scan, ref_vid)
                 image_ref = cv2.resize(image_ref, tuple(args.img_wh),
-                                       interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
+                                        interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
                 depth_ref = read_pfm(f'results/{args.dataset_name}/depth/' \
                                      f'{scan}/depth_{ref_vid:04d}.pfm')[0]
             proba_ref = read_pfm(f'results/{args.dataset_name}/depth/' \
@@ -264,24 +267,24 @@ if __name__ == "__main__":
             mask_conf = proba_ref > args.conf # confidence mask
             P_world2ref = read_proj_mat(args.dataset_name, dataset, scan, ref_vid)
             
-            src_vids = meta[-1]
+            src_vids = meta[3]
             mask_geos = []
             depth_ref_reprojs = [depth_ref]
             image_src2refs = [image_ref]
             # for each src view, check the consistency and refine depth
             for src_vid in src_vids:
                 if src_vid in depth_refined: # use refined data of previous runs
-                    image_src = cv2.resize(image_refined[src_vid], None, fx=2, fy=2)
+                    image_src = cv2.resize(image_refined[src_vid], None, fx=4, fy=4)
                     depth_src = depth_refined[src_vid]
                 else:
                     image_src = read_image(args.dataset_name, args.root_dir, scan, src_vid)
                     image_src = cv2.resize(image_src, tuple(args.img_wh),
-                                       interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
+                                        interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
                     depth_src = read_pfm(f'results/{args.dataset_name}/depth/' \
                                          f'{scan}/depth_{src_vid:04d}.pfm')[0]
-                    image_refined[src_vid] = cv2.resize(image_src, None, fx=0.5, fy=0.5)
+                    image_refined[src_vid] = cv2.resize(image_src, None, fx=1/4, fy=1/4)
                     depth_refined[src_vid] = depth_src
-                P_world2src = read_proj_mat(args.dataset_name, dataset, scan, src_vid)
+                    P_world2src = read_proj_mat(args.dataset_name, dataset, scan, src_vid)
                 depth_ref_reproj, mask_geo, image_src2ref = \
                     check_geo_consistency(depth_ref, P_world2ref,
                                           depth_src, P_world2src,
@@ -295,7 +298,7 @@ if __name__ == "__main__":
                 (np.sum(depth_ref_reprojs, 0)/(mask_geo_sum+1)).astype(np.float32)
             image_refined_ = \
                 np.sum(image_src2refs, 0)/np.expand_dims((mask_geo_sum+1), -1)
-            image_refined[ref_vid] = cv2.resize(image_refined_, None, fx=0.5, fy=0.5)
+            image_refined[ref_vid] = cv2.resize(image_refined_, None, fx=1/4, fy=1/4)
             mask_final = mask_conf & mask_geo_final
             
             # create the final points
@@ -312,10 +315,14 @@ if __name__ == "__main__":
             vs += [xyz_world]
             v_colors += [color]
 
+        # clear refined buffers
+        image_refined.clear()
+        depth_refined.clear()
+
         # process all points in the buffers
         vs = np.ascontiguousarray(np.vstack(vs).astype(np.float32))
         v_colors = np.vstack(v_colors).astype(np.uint8)
-        print(scan, 'contains', len(vs), 'points')
+        print(scan, f'contains {len(vs)/1e6:.2f} M points')
         vs.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
         v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
 
@@ -328,8 +335,6 @@ if __name__ == "__main__":
         el = PlyElement.describe(vertex_all, 'vertex')
         PlyData([el]).write(f'{point_dir}/{scan}.ply')
         del vertex_all, vs, v_colors
-        image_refined.clear()
-        depth_refined.clear()
 
 
     print('Done!')

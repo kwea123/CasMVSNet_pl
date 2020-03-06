@@ -6,7 +6,7 @@ import numpy as np
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument('--dataset_name', type=str, required=True,
-                        choices=['dtu', 'tanks'],
+                        choices=['dtu', 'tanks', 'blendedmvs'],
                         help='the scan to visualize')
     parser.add_argument('--scan', type=str, required=True,
                         help='the scan to visualize')
@@ -18,10 +18,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.dataset_name == 'dtu':
-        pcd = o3d.io.read_point_cloud(f"results/dtu/points/scan{args.scan}.ply")
-    elif args.dataset_name == 'tanks':
-        pcd = o3d.io.read_point_cloud(f"results/tanks/points/{args.scan}.ply")
+    pcd = o3d.io.read_point_cloud(f"results/{args.dataset_name}/points/{args.scan}.ply")
     vis = o3d.visualization.Visualizer()
     vis.create_window()
     ctr = vis.get_view_control()
