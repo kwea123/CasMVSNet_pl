@@ -193,39 +193,41 @@ class CascadeMVSNet(nn.Module):
     def forward(self, imgs, proj_mats, init_depth_min, depth_interval):
         # imgs: (B, V, 3, H, W)
         # proj_mats: (B, V-1, self.levels, 3, 4) from fine to coarse
-        # init_depth_min, depth_interval: (B,) assumed to be the same for all samples
+        # init_depth_min, depth_interval: (B) or float
         B, V, _, H, W = imgs.shape
         results = {}
 
         imgs = imgs.reshape(B*V, 3, H, W)
         feats = self.feature(imgs) # (B*V, 8, H, W), (B*V, 16, H//2, W//2), (B*V, 32, H//4, W//4)
         
-        if not isinstance(init_depth_min, float):
-            init_depth_min = float(init_depth_min[0].item())
-        if not isinstance(depth_interval, float):
-            depth_interval = float(depth_interval[0].item())
-
         for l in reversed(range(self.levels)): # (2, 1, 0)
             feats_l = feats[f"level_{l}"] # (B*V, C, h, w)
             feats_l = feats_l.view(B, V, *feats_l.shape[1:]) # (B, V, C, h, w)
             proj_mats_l = proj_mats[:, :, l] # (B, V-1, 3, 4)
             depth_interval_l = depth_interval * self.interval_ratios[l]
             D = self.n_depths[l]
-            with torch.no_grad():
-                if l == self.levels-1: # coarsest level
-                    h, w = feats_l.shape[-2:]
+            if l == self.levels-1: # coarsest level
+                h, w = feats_l.shape[-2:]
+                if isinstance(init_depth_min, float):
                     depth_values = init_depth_min + depth_interval_l * \
                                    torch.arange(0, D,
                                                 device=imgs.device,
-                                                dtype=imgs.dtype)
-                    depth_values = depth_values.reshape(1, -1, 1, 1).repeat(B, 1, h, w)
+                                                dtype=imgs.dtype) # (D)
+                    depth_values = depth_values.reshape(1, D, 1, 1).repeat(B, 1, h, w)
                 else:
-                    depth_l_1 = depth_l # the depth of previous level
-                    depth_l_1 = F.interpolate(depth_l_1.unsqueeze(1),
-                                              scale_factor=2, mode='bilinear',
-                                              align_corners=True) # (B, 1, h, w)
-                    depth_values = get_depth_values(depth_l_1, D, depth_interval_l)
-                    del depth_l_1
+                    depth_values = init_depth_min.unsqueeze(1) + \
+                                   depth_interval_l.unsqueeze(1)* \
+                                   torch.arange(0, D,
+                                                device=imgs.device,
+                                                dtype=imgs.dtype).unsqueeze(0) # (B, D)
+                    depth_values = depth_values.reshape(B, D, 1, 1).repeat(1, 1, h, w)
+            else:
+                depth_l_1 = depth_l.detach() # the depth of previous level
+                depth_l_1 = F.interpolate(depth_l_1.unsqueeze(1),
+                                          scale_factor=2, mode='bilinear',
+                                          align_corners=True) # (B, 1, h, w)
+                depth_values = get_depth_values(depth_l_1, D, depth_interval_l)
+                del depth_l_1
             depth_l, confidence_l = self.predict_depth(feats_l, proj_mats_l, depth_values,
                                                        getattr(self, f'cost_reg_{l}'))
             del feats_l, proj_mats_l, depth_values
