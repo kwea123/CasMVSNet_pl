@@ -38,19 +38,13 @@ def get_depth_values(current_depth, n_depths, depth_interval):
     depth_interval: (B) or float, interval between each depth channel
     return: (B, D, H, W)
     """
-    if isinstance(depth_interval, float):
-        depth_min = current_depth - n_depths/2 * depth_interval
-        depth_values = depth_min + depth_interval * \
-                       torch.arange(0, n_depths,
-                                    device=current_depth.device,
-                                    dtype=current_depth.dtype).reshape(1, -1, 1, 1)
-    else:
-        depth_interval_ = depth_interval.reshape(-1, 1, 1, 1)
-        depth_min = current_depth - n_depths/2 * depth_interval_
-        depth_values = depth_min + depth_interval_ * \
-                       torch.arange(0, n_depths,
-                                    device=current_depth.device,
-                                    dtype=current_depth.dtype).reshape(1, -1, 1, 1)
+    if not isinstance(depth_interval, float):
+        depth_interval = depth_interval.reshape(-1, 1, 1, 1)
+    depth_min = current_depth - n_depths/2 * depth_interval
+    depth_values = depth_min + depth_interval * \
+                   torch.arange(0, n_depths,
+                                device=current_depth.device,
+                                dtype=current_depth.dtype).reshape(1, -1, 1, 1)
     return depth_values
 
 

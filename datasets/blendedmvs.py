@@ -40,7 +40,7 @@ class BlendedMVSDataset(Dataset):
         else:
             list_txt = os.path.join(self.root_dir, '../all_list.txt')
         with open(list_txt) as f:
-            self.scans = [line.rstrip() for line in f.readlines()][23:24]
+            self.scans = [line.rstrip() for line in f.readlines()]
 
         for scan in self.scans:
             with open(os.path.join(self.root_dir, scan, "cams/pair.txt")) as f:
