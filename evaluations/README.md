@@ -37,6 +37,7 @@ It will generate depth prediction files under folder `results/$DATASET/depth`; a
 
 *  You can comment out the `# Step 1.` to do depth fusion only, after the depth prediction are generated.
 *  You can add `--scan $SCAN` to only do depth fusion on specific scans (specify also the correct `--split`). Otherwise the default will process all scans in the `split`.
+*  For `BlendedMVS`, the `depth_interval` is defined as the number of depths in the coarsest level, which should be equal to `48x4.0=192.0` in the default settings.
 
 # Visualization of point cloud
 
