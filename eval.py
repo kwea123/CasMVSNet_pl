@@ -28,10 +28,8 @@ def get_opts():
                         help='which dataset to train/val')
     parser.add_argument('--split', type=str, default='test',
                         help='which split to evaluate')
-    parser.add_argument('--scans', nargs="+", type=int, default=[],
-                        help='''only for dtu dataset.
-                                specify scans to evaluate (must be in the split)
-                             ''')
+    parser.add_argument('--scan', type=str, default='',
+                        help='specify scan to evaluate (must be in the split)')
     parser.add_argument('--cpu', default=False, action='store_true',
                         help='''use cpu to do depth inference.
                                 WARNING: It is going to be EXTREMELY SLOW!
@@ -180,8 +178,8 @@ if __name__ == "__main__":
                  n_views=args.n_views, depth_interval=args.depth_interval,
                  img_wh=tuple(args.img_wh))
 
-    if args.scans:
-        scans = [f'scan{scan}' for scan in args.scans]
+    if args.scan:
+        scans = [args.scan]
     else: # evaluate on all scans in dataset
         scans = dataset.scans
 
@@ -197,11 +195,8 @@ if __name__ == "__main__":
 
     depth_dir = f'results/{args.dataset_name}/depth'
     print('Creating depth and confidence predictions...')
-    if args.scans: # TODO: adapt scan specification to tanks and blendedmvs
-        data_range = []
-        for scan in scans:
-            idx = dataset.scans.index(scan)
-            data_range += list(range(idx*49, (idx+1)*49))
+    if args.scan: # TODO: adapt scan specification to tanks and blendedmvs
+        data_range = [i for i, x in enumerate(dataset.metas) if x[0] == args.scan]
     else:
         data_range = range(len(dataset))
     for i in tqdm(data_range):
