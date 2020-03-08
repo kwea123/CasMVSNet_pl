@@ -36,6 +36,8 @@ Since it takes a long time to evaluate (5 hours using default settings...), I pr
 | *[CasMVSNet](https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet) | 0.3779 | 0.3645 | 0.3712 | 1152x864 |
 | PointMVSNet paper | 0.361 | 0.421 | 0.391 | 1280x960 |
 | *[PointMVSNet](https://github.com/callmeray/PointMVSNet) | 0.6344 | 0.6481 | 0.6412 | 1280x960 |
+| [UCSNet](https://github.com/touristCheng/UCSNet) paper | 0.330 | 0.372 | 0.351 | 1600x1184 |
+| [PVAMVSNet](https://github.com/yhw-yhw/PVAMVSNet) paper | 0.372 | 0.350 | 0.361 | 1600x1184 |
 | *This repo | 0.3653 | 0.3664 | 0.3658 | 1152x864 |
 
 1. The number of views used is 5 for all methods.
