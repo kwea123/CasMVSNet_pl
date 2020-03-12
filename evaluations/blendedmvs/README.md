@@ -5,7 +5,7 @@ I use a gwc model (because it consumes less memory, and blendedmvs is high-res s
 
 # Quantitative evaluation
 
-No point cloud evaluation currently.
+[No point cloud evaluation currently](https://github.com/YoYo000/BlendedMVS/issues/4).
 
 # Qualitative evaluation
 
