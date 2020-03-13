@@ -11,9 +11,16 @@
 |   | Mean   | Family | Francis | Horse  | Lighthouse | M60    | Panther | Playground | Train |
 |---|--------|--------|---------|--------|------------|--------|---------|------------|-------|
 |[Original](https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet)| 56.42  | 76.36  | 58.45   | 46.20  | 55.53	  | 56.11  | 54.02   | 58.17	  | 46.56 |
-|This repo| 55.12 | 76.39 |	52.78 |	49.06 |	53.69 |	56.23 |	52.00 |	50.22 |	50.62
+|This repo| 55.09 | 76.40 |	52.83 |	49.08 |	49.72 |	56.24 |	51.99 |	53.87 |	50.63
 
-[Detailed results](https://www.tanksandtemples.org/details/827/)
+### Intermediate
+
+|   | Mean   | Auditorium |	Ballroom | Courtroom | Museum	| Palace | Temple | 
+|---|--------|------------|----------|-----------|--------|--------|---------|
+|[Original](https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet)| 31.12  | 19.81  | 38.46   | 29.10  | 43.87	  | 27.36  | 28.11   |
+|This repo| 29.63 | 20.57 |	35.10 |	28.88 |	36.05 |	26.84 |	30.31 |
+
+[Detailed results](https://www.tanksandtemples.org/details/829/)
 
 # Qualitative evaluation
 
