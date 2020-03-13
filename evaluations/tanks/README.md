@@ -13,7 +13,7 @@
 |[Original](https://github.com/alibaba/cascade-stereo/tree/master/CasMVSNet)| 56.42  | 76.36  | 58.45   | 46.20  | 55.53	  | 56.11  | 54.02   | 58.17	  | 46.56 |
 |This repo| 55.09 | 76.40 |	52.83 |	49.08 |	49.72 |	56.24 |	51.99 |	53.87 |	50.63
 
-### Intermediate
+### Advanced
 
 |   | Mean   | Auditorium |	Ballroom | Courtroom | Museum	| Palace | Temple | 
 |---|--------|------------|----------|-----------|--------|--------|---------|
