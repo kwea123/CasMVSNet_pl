@@ -46,6 +46,14 @@ def get_opts():
                         help='depth interval ratio to multiply with --depth_interval in each level')
     parser.add_argument('--num_groups', type=int, default=1, choices=[1, 2, 4, 8],
                         help='number of groups in groupwise correlation, must be a divisor of 8')
+    parser.add_argument('--use_attention', default=False, action="store_true",
+                        help='''use attention branch in view aggregation;
+                                only applied when num_groups>1 (when using gwc)
+                             ''')
+    parser.add_argument('--use_atv', default=False, action="store_true",
+                        help='''use pixel-wise adaptive depth interval
+                                at finer levels.
+                             ''')
     parser.add_argument('--img_wh', nargs="+", type=int, default=[1152, 864],
                         help='resolution (img_w, img_h) of the image, must be multiples of 32')
     parser.add_argument('--ckpt_path', type=str, default='ckpts/exp2/_ckpt_epoch_10.ckpt',
@@ -187,6 +195,8 @@ if __name__ == "__main__":
     model = CascadeMVSNet(n_depths=args.n_depths,
                           interval_ratios=args.interval_ratios,
                           num_groups=args.num_groups,
+                          use_attention=args.use_attention,
+                          use_atv=args.use_atv,
                           norm_act=ABN)
     device = 'cpu' if args.cpu else 'cuda:0'
     model.to(device)

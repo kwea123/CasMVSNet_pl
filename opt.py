@@ -11,20 +11,29 @@ def get_opts():
                         help='which dataset to train/val')
     parser.add_argument('--n_views', type=int, default=3,
                         help='number of views (including ref) to be used in training')
+
     parser.add_argument('--levels', type=int, default=3, choices=[3],
                         help='number of FPN levels (fixed to be 3!)')
-    parser.add_argument('--depth_interval', type=float, default=2.8,
-                        help='depth interval unit in mm')
+    parser.add_argument('--depth_interval', type=float, default=2.65,
+                        help='depth interval unit in mm for DTU')
     parser.add_argument('--n_depths', nargs='+', type=int, default=[8,32,48],
                         help='number of depths in each level')
     parser.add_argument('--interval_ratios', nargs='+', type=float, default=[1.0,2.0,4.0],
                         help='depth interval ratio to multiply with --depth_interval in each level')
     parser.add_argument('--num_groups', type=int, default=1, choices=[1, 2, 4, 8],
                         help='number of groups in groupwise correlation, must be a divisor of 8')
-    parser.add_argument('--loss_type', type=str, default='sl1',
-                        choices=['sl1'],
-                        help='loss to use')
+    parser.add_argument('--use_attention', default=False, action="store_true",
+                        help='''use attention branch in view aggregation;
+                                only applied when num_groups>1 (when using gwc)
+                             ''')
+    parser.add_argument('--use_atv', default=False, action="store_true",
+                        help='''use pixel-wise adaptive depth interval
+                                at finer levels.
+                             ''')
 
+    parser.add_argument('--loss_type', type=str, default='sl1',
+                        choices=['sl1', 'l1'],
+                        help='loss to use')
     parser.add_argument('--batch_size', type=int, default=1,
                         help='batch size')
     parser.add_argument('--num_epochs', type=int, default=6,

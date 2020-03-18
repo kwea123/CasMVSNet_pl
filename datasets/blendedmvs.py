@@ -10,7 +10,7 @@ from torchvision import transforms as T
 
 class BlendedMVSDataset(Dataset):
     def __init__(self, root_dir, split, n_views=3, levels=3, depth_interval=192.0,
-                 img_wh=None):
+                 img_wh=(768, 576)):
         """
         img_wh should be set to a tuple ex: (1152, 864) to enable test mode!
         @depth_interval is (the number of depth)x(interval_ratio) of the coarsest level!

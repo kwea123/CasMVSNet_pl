@@ -106,25 +106,33 @@ class CascadeMVSNet(nn.Module):
     def __init__(self, n_depths=[8, 32, 48],
                        interval_ratios=[1, 2, 4],
                        num_groups=1,
+                       use_attention=True,
+                       use_atv=True,
                        norm_act=InPlaceABN):
         super(CascadeMVSNet, self).__init__()
         self.levels = 3 # 3 depth levels
         self.n_depths = n_depths
         self.interval_ratios = interval_ratios
         self.G = num_groups # number of groups in groupwise correlation
+        self.use_attention = use_attention
+        self.use_atv = use_atv
+        self.atv_ratios = [1.5, 1.5] # hardcode for now
         self.feature = FeatureNet(norm_act)
+        
         for l in range(self.levels):
-            if self.G > 1:
-                cost_reg_l = CostRegNet(self.G, norm_act)
-            else:
-                cost_reg_l = CostRegNet(8*2**l, norm_act)
+            in_channels = self.G if self.G>1 else 8*2**l
+            cost_reg_l = CostRegNet(in_channels, norm_act)
             setattr(self, f'cost_reg_{l}', cost_reg_l)
+            if use_attention:
+                att_l = AttentionBranch(in_channels, norm_act)
+                setattr(self, f'att_{l}', att_l)
 
-    def predict_depth(self, feats, proj_mats, depth_values, cost_reg):
+    def predict_depth(self, feats, proj_mats, depth_values, cost_reg, att=None):
         # feats: (B, V, C, H, W)
         # proj_mats: (B, V-1, 3, 4)
         # depth_values: (B, D, H, W)
         # cost_reg: nn.Module of input (B, C, D, h, w) and output (B, 1, D, h, w)
+        # att: nn.Module of input (B, C, D, h, w) and output (B, C, D, h, w) or None
         B, V, C, H, W = feats.shape
         D = depth_values.shape[1]
 
@@ -153,8 +161,11 @@ class CascadeMVSNet(nn.Module):
                     volume_sq_sum += warped_volume.pow_(2)
             else:
                 warped_volume = warped_volume.view(*ref_volume.shape)
+                warped_volume = (warped_volume*ref_volume).mean(2) # (B, G, D, h, w)
+                if att is not None:
+                    warped_volume = att(warped_volume) # add attention
                 if self.training:
-                    volume_sum = volume_sum + warped_volume # (B, G, C//G, D, h, w)
+                    volume_sum = volume_sum + warped_volume
                 else:
                     volume_sum += warped_volume
             del warped_volume, src_feat, proj_mat
@@ -164,13 +175,17 @@ class CascadeMVSNet(nn.Module):
             volume_variance = volume_sq_sum.div_(V).sub_(volume_sum.div_(V).pow_(2))
             del volume_sq_sum, volume_sum
         else:
-            volume_variance = (volume_sum*ref_volume).mean(2).div_(V-1) # (B, G, D, h, w)
+            volume_variance = volume_sum/(V-1) # (B, G, D, h, w)
             del volume_sum, ref_volume
         
         cost_reg = cost_reg(volume_variance).squeeze(1)
         prob_volume = F.softmax(cost_reg, 1) # (B, D, h, w)
         del cost_reg
-        depth = depth_regression(prob_volume, depth_values)
+        depth = depth_regression(prob_volume, depth_values) # (B, h, w)
+
+        depth_std = (depth_regression(prob_volume,
+                                     (depth_values-depth.unsqueeze(1))**2
+                                     )+1e-7)**0.5
         
         with torch.no_grad():
             # sum probability of 4 consecutive depth indices
@@ -185,10 +200,10 @@ class CascadeMVSNet(nn.Module):
                                           ).long() # (B, h, w)
             depth_index = torch.clamp(depth_index, 0, D-1)
             # the confidence is the 4-sum probability at this index
-            confidence = torch.gather(prob_volume_sum4, 1, 
+            confidence = torch.gather(prob_volume_sum4, 1,
                                       depth_index.unsqueeze(1)).squeeze(1) # (B, h, w)
 
-        return depth, confidence
+        return depth, confidence, depth_std, prob_volume
 
     def forward(self, imgs, proj_mats, init_depth_min, depth_interval):
         # imgs: (B, V, 3, H, W)
@@ -226,12 +241,28 @@ class CascadeMVSNet(nn.Module):
                 depth_l_1 = F.interpolate(depth_l_1.unsqueeze(1),
                                           scale_factor=2, mode='bilinear',
                                           align_corners=True) # (B, 1, h, w)
+                if self.use_atv: # use pixel-wise adaptive depth interval at finer levels
+                    if isinstance(depth_interval_l, float):
+                        depth_interval_l_ = depth_interval_l
+                    else:
+                        depth_interval_l_ = depth_interval_l[0].item() # original number
+                    depth_std_l_1 = F.interpolate(depth_std_l.unsqueeze(1),
+                                                  scale_factor=2, mode='bilinear',
+                                                  align_corners=True) # (B, 1, h, w)
+                    depth_interval_l = 2*self.atv_ratios[l]*depth_std_l_1/D
+                    depth_interval_l[depth_interval_l>depth_interval_l_] = depth_interval_l_
                 depth_values = get_depth_values(depth_l_1, D, depth_interval_l)
                 del depth_l_1
-            depth_l, confidence_l = self.predict_depth(feats_l, proj_mats_l, depth_values,
-                                                       getattr(self, f'cost_reg_{l}'))
+            att_l = getattr(self, f'att_{l}') if self.use_attention else None
+            depth_l, confidence_l, depth_std_l, prob_volume_l = \
+                self.predict_depth(feats_l, proj_mats_l, depth_values,
+                                   getattr(self, f'cost_reg_{l}'),
+                                   att_l)
             del feats_l, proj_mats_l, depth_values
             results[f"depth_{l}"] = depth_l
             results[f"confidence_{l}"] = confidence_l
+            results[f"prob_volume_{l}"] = prob_volume_l
+            results[f"depth_std_{l}"] = depth_std_l
+            results[f"depth_interval_{l}"] = depth_interval_l
 
         return results

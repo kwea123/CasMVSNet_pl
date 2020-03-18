@@ -1,4 +1,4 @@
-import os
+import os, sys
 from opt import get_opts
 import torch
 
@@ -39,21 +39,23 @@ class MVSSystem(pl.LightningModule):
 
         self.loss = loss_dict[hparams.loss_type](hparams.levels)
 
-        self.model = CascadeMVSNet(n_depths=self.hparams.n_depths,
-                                   interval_ratios=self.hparams.interval_ratios,
-                                   num_groups=self.hparams.num_groups,
+        self.model = CascadeMVSNet(n_depths=hparams.n_depths,
+                                   interval_ratios=hparams.interval_ratios,
+                                   num_groups=hparams.num_groups,
+                                   use_attention=hparams.use_attention,
+                                   use_atv=hparams.use_atv,
                                    norm_act=InPlaceABN)
 
         # if num gpu is 1, print model structure and number of params
-        if self.hparams.num_gpus == 1:
+        if hparams.num_gpus == 1:
             # print(self.model)
             print('number of parameters : %.2f M' % 
                   (sum(p.numel() for p in self.model.parameters() if p.requires_grad) / 1e6))
         
         # load model if checkpoint path is provided
-        if self.hparams.ckpt_path != '':
-            print('Load model from', self.hparams.ckpt_path)
-            load_ckpt(self.model, self.hparams.ckpt_path, self.hparams.prefixes_to_ignore)
+        if hparams.ckpt_path != '':
+            print('Load model from', hparams.ckpt_path)
+            load_ckpt(self.model, hparams.ckpt_path, hparams.prefixes_to_ignore)
 
     def decode_batch(self, batch):
         imgs = batch['imgs']
@@ -73,6 +75,10 @@ class MVSSystem(pl.LightningModule):
             self.decode_batch(batch)
         results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
         log['train/loss'] = loss = self.loss(results, depths, masks)
+        if torch.isnan(loss).any():
+            print(results['depth_std_0'])
+            print(torch.isnan(results['depth_std_0']).any())
+            sys.exit()
         
         with torch.no_grad():
             if batch_nb == 0:

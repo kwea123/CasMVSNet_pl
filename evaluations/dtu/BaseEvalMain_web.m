@@ -6,8 +6,8 @@ clc
 % script to calculate distances have been measured for all included scans (UsedSets)
 
 dataPath='/home/ubuntu/data/DTU';
-plyPath='/home/ubuntu/workspace/CasMVSNet_pl/results/points';
-resultsPath='/home/ubuntu/workspace/CasMVSNet_pl/results/matlab/';
+plyPath='/home/ubuntu/workspace/CasMVSNet_pl/results/dtu/points';
+resultsPath='/home/ubuntu/workspace/CasMVSNet_pl/results/dtu/matlabg8/';
 
 method_string='';
 light_string=''; % l3 is the setting with all lights on, l7 is randomly sampled between the 7 settings (index 0-6)

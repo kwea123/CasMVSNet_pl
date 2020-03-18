@@ -7,7 +7,7 @@ clc
 % for all included scans (UsedSets)
 
 % modify the path to evaluate your models
-resultsPath='/home/ubuntu/workspace/MVSNet_pytorch/outputs/';
+resultsPath='/home/ubuntu/workspace/CasMVSNet_pl/results/matlabg8/';
 
 MaxDist=20; %outlier thresshold of 20 mm
 

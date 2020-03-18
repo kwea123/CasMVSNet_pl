@@ -30,16 +30,33 @@ class ConvBnReLU3D(nn.Module):
         return self.bn(self.conv(x))
 
 
+class AttentionBranch(nn.Module): # TODO: not working with sigmoid currently, try relu
+    def __init__(self, in_channels, norm_act=InPlaceABN):
+        super(AttentionBranch, self).__init__()
+        self.conv = nn.Conv3d(in_channels, 1, 1, stride=1, padding=0, bias=False)
+        self.bn = norm_act(1)
+
+    def forward(self, x):
+        """
+        x: (B, C, D, H, W)
+        """
+        attention = self.bn(self.conv(x)) # (B, 1, D, H, W)
+        return x * (attention+1)
+
+
 def get_depth_values(current_depth, n_depths, depth_interval):
     """
     get the depth values of each pixel : [depth_min, depth_max) step is depth_interval
     current_depth: (B, 1, H, W), current depth map
     n_depth: int, number of channels of depth
-    depth_interval: (B) or float, interval between each depth channel
+    depth_interval: (B, 1) or (B, H, W) or float, interval between each depth channel
     return: (B, D, H, W)
     """
     if not isinstance(depth_interval, float):
-        depth_interval = depth_interval.reshape(-1, 1, 1, 1)
+        if depth_interval.ndim == 2: # (B, 1)
+            depth_interval = depth_interval.reshape(-1, 1, 1, 1)
+        elif depth_interval.ndim == 3: # (B, H, W)
+            depth_interval = depth_interval.unsqueeze(1)
     depth_min = current_depth - n_depths/2 * depth_interval
     depth_values = depth_min + depth_interval * \
                    torch.arange(0, n_depths,
