@@ -279,7 +279,7 @@ if __name__ == "__main__":
                                          f'{scan}/depth_{src_vid:04d}.pfm')[0]
                     image_refined[src_vid] = cv2.resize(image_src, None, fx=1/4, fy=1/4)
                     depth_refined[src_vid] = depth_src
-                    P_world2src = read_proj_mat(args.dataset_name, dataset, scan, src_vid)
+                P_world2src = read_proj_mat(args.dataset_name, dataset, scan, src_vid)
                 depth_ref_reproj, mask_geo, image_src2ref = \
                     check_geo_consistency(depth_ref, P_world2ref,
                                           depth_src, P_world2src,
