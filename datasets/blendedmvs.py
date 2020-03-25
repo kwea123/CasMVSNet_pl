@@ -9,11 +9,11 @@ import torch
 from torchvision import transforms as T
 
 class BlendedMVSDataset(Dataset):
-    def __init__(self, root_dir, split, n_views=3, levels=3, depth_interval=192.0,
+    def __init__(self, root_dir, split, n_views=3, levels=3, depth_interval=2.65,
+                 n_depths=192,
                  img_wh=(768, 576)):
         """
         img_wh should be set to a tuple ex: (1152, 864) to enable test mode!
-        @depth_interval is (the number of depth)x(interval_ratio) of the coarsest level!
         """
         self.root_dir = root_dir
         self.split = split
@@ -26,7 +26,8 @@ class BlendedMVSDataset(Dataset):
         self.build_metas()
         self.n_views = n_views
         self.levels = levels # FPN levels
-        self.n_depths = depth_interval
+        self.depth_interval = depth_interval
+        self.n_depths = n_depths
         self.build_proj_mats()
         self.define_transforms()
 
@@ -53,7 +54,7 @@ class BlendedMVSDataset(Dataset):
 
     def build_proj_mats(self):
         self.proj_mats = {} # proj mats for each scan
-        self.depth_interval = {}
+        self.scale_factors = {} # depth scale factors for each scan
         if self.root_dir.endswith('dataset_low_res') \
             or self.root_dir.endswith('dataset_low_res/'):
             img_w, img_h = 768, 576
@@ -61,15 +62,13 @@ class BlendedMVSDataset(Dataset):
             img_w, img_h = 2048, 1536
         for scan in self.scans:
             self.proj_mats[scan] = {}
-            self.depth_interval[scan] = {}
             for vid in self.ref_views_per_scan[scan]:
                 proj_mat_filename = os.path.join(self.root_dir, scan,
                                                  f'cams/{vid:08d}_cam.txt')
-                intrinsics, extrinsics, depth_min, depth_interval = \
-                    self.read_cam_file(proj_mat_filename)
+                intrinsics, extrinsics, depth_min = \
+                    self.read_cam_file(scan, proj_mat_filename)
                 intrinsics[0] *= self.img_wh[0]/img_w/4
                 intrinsics[1] *= self.img_wh[1]/img_h/4
-                self.depth_interval[scan][vid] = depth_interval
 
                 # multiply intrinsics and extrinsics to get projection matrix
                 proj_mat_ls = []
@@ -82,7 +81,7 @@ class BlendedMVSDataset(Dataset):
                 proj_mat_ls = torch.stack(proj_mat_ls[::-1])
                 self.proj_mats[scan][vid] = (proj_mat_ls, depth_min)
 
-    def read_cam_file(self, filename):
+    def read_cam_file(self, scan, filename):
         with open(filename) as f:
             lines = [line.rstrip() for line in f.readlines()]
         # extrinsics: line [1,5), 4x4 matrix
@@ -94,11 +93,16 @@ class BlendedMVSDataset(Dataset):
         # depth_min & depth_interval: line 11
         depth_min = float(lines[11].split()[0])
         depth_max = float(lines[11].split()[3])
-        depth_interval = (depth_max-depth_min)/self.n_depths
-        return intrinsics, extrinsics, depth_min, depth_interval
+        if scan not in self.scale_factors:
+            # just use the first cam file to determine the scale factor for this scan
+            self.scale_factors[scan] = self.depth_interval*self.n_depths/(depth_max-depth_min)
+        depth_min *= self.scale_factors[scan]
+        extrinsics[:3, 3] *= self.scale_factors[scan]
+        return intrinsics, extrinsics, depth_min
 
-    def read_depth_and_mask(self, filename):
+    def read_depth_and_mask(self, scan, filename):
         depth = np.array(read_pfm(filename)[0], dtype=np.float32)
+        depth *= self.scale_factors[scan]
         if self.img_wh is not None:
             depth_0 = cv2.resize(depth, self.img_wh,
                                  interpolation=cv2.INTER_NEAREST)
@@ -123,12 +127,12 @@ class BlendedMVSDataset(Dataset):
             self.transform = T.Compose([T.ColorJitter(brightness=0.25,
                                                       contrast=0.5),
                                         T.ToTensor(),
-                                        T.Normalize(mean=[0.485, 0.456, 0.406], 
+                                        T.Normalize(mean=[0.485, 0.456, 0.406],
                                                     std=[0.229, 0.224, 0.225]),
                                        ])
         else:
             self.transform = T.Compose([T.ToTensor(),
-                                        T.Normalize(mean=[0.485, 0.456, 0.406], 
+                                        T.Normalize(mean=[0.485, 0.456, 0.406],
                                                     std=[0.229, 0.224, 0.225]),
                                        ])
 
@@ -159,8 +163,8 @@ class BlendedMVSDataset(Dataset):
 
             if i == 0:  # reference view
                 sample['init_depth_min'] = torch.FloatTensor([depth_min])
-                sample['depth_interval'] = torch.FloatTensor([self.depth_interval[scan][vid]])
-                depths, masks = self.read_depth_and_mask(depth_filename)
+                sample['depth_interval'] = torch.FloatTensor([self.depth_interval])
+                depths, masks = self.read_depth_and_mask(scan, depth_filename)
                 ref_proj_inv = torch.inverse(proj_mat_ls)
             else:
                 proj_mats += [proj_mat_ls @ ref_proj_inv]
