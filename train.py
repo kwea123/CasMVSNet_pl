@@ -150,7 +150,6 @@ class MVSSystem(pl.LightningModule):
         
         return [self.optimizer], [scheduler]
 
-    @pl.data_loader
     def train_dataloader(self):
         dataset = dataset_dict[self.hparams.dataset_name]
         train_dataset = dataset(root_dir=self.hparams.root_dir,
@@ -169,7 +168,6 @@ class MVSSystem(pl.LightningModule):
                           batch_size=self.hparams.batch_size,
                           pin_memory=True)
 
-    @pl.data_loader
     def val_dataloader(self):
         dataset = dataset_dict[self.hparams.dataset_name]
         val_dataset = dataset(root_dir=self.hparams.root_dir,
