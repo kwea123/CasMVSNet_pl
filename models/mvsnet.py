@@ -106,8 +106,8 @@ class CascadeMVSNet(nn.Module):
     def __init__(self, n_depths=[8, 32, 48],
                        interval_ratios=[1, 2, 4],
                        num_groups=1,
-                       use_attention=True,
-                       use_atv=True,
+                       use_attention=False,
+                       use_atv=False,
                        norm_act=InPlaceABN):
         super(CascadeMVSNet, self).__init__()
         self.levels = 3 # 3 depth levels
@@ -242,15 +242,15 @@ class CascadeMVSNet(nn.Module):
                                           scale_factor=2, mode='bilinear',
                                           align_corners=True) # (B, 1, h, w)
                 if self.use_atv: # use pixel-wise adaptive depth interval at finer levels
-                    if isinstance(depth_interval_l, float):
-                        depth_interval_l_ = depth_interval_l
-                    else:
-                        depth_interval_l_ = depth_interval_l[0].item() # original number
+                    # if isinstance(depth_interval_l, float):
+                    #     depth_interval_l_ = depth_interval_l
+                    # else:
+                    #     depth_interval_l_ = depth_interval_l[0].item() # original number
                     depth_std_l_1 = F.interpolate(depth_std_l.unsqueeze(1),
                                                   scale_factor=2, mode='bilinear',
                                                   align_corners=True) # (B, 1, h, w)
                     depth_interval_l = 2*self.atv_ratios[l]*depth_std_l_1/D
-                    depth_interval_l[depth_interval_l>depth_interval_l_] = depth_interval_l_
+                    # depth_interval_l[depth_interval_l>depth_interval_l_] = depth_interval_l_
                 depth_values = get_depth_values(depth_l_1, D, depth_interval_l)
                 del depth_l_1
             att_l = getattr(self, f'att_{l}') if self.use_attention else None
@@ -258,11 +258,12 @@ class CascadeMVSNet(nn.Module):
                 self.predict_depth(feats_l, proj_mats_l, depth_values,
                                    getattr(self, f'cost_reg_{l}'),
                                    att_l)
-            del feats_l, proj_mats_l, depth_values
+            # del feats_l, proj_mats_l, depth_values
             results[f"depth_{l}"] = depth_l
             results[f"confidence_{l}"] = confidence_l
             results[f"prob_volume_{l}"] = prob_volume_l
             results[f"depth_std_{l}"] = depth_std_l
             results[f"depth_interval_{l}"] = depth_interval_l
+            results[f"depth_values_{l}"] = depth_values
 
         return results

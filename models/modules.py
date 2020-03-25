@@ -30,10 +30,10 @@ class ConvBnReLU3D(nn.Module):
         return self.bn(self.conv(x))
 
 
-class AttentionBranch(nn.Module): # TODO: not working with sigmoid currently, try relu
+class AttentionBranch(nn.Module):
     def __init__(self, in_channels, norm_act=InPlaceABN):
         super(AttentionBranch, self).__init__()
-        self.conv = nn.Conv3d(in_channels, 1, 1, stride=1, padding=0, bias=False)
+        self.conv = nn.Conv3d(in_channels, 1, 1, bias=False)
         self.bn = norm_act(1)
 
     def forward(self, x):
