@@ -3,7 +3,6 @@ from opt import get_opts
 import torch
 
 from torch.utils.data import DataLoader
-from torch.utils.data.distributed import DistributedSampler
 from datasets import dataset_dict
 
 # models
@@ -22,12 +21,11 @@ from losses import loss_dict
 from metrics import *
 
 # pytorch-lightning
-import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning import Trainer
+from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.logging import TestTubeLogger
 
-class MVSSystem(pl.LightningModule):
+class MVSSystem(LightningModule):
     def __init__(self, hparams):
         super(MVSSystem, self).__init__()
         self.hparams = hparams
