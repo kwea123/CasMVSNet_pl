@@ -126,7 +126,6 @@ class MVSSystem(pl.LightningModule):
                 'log': log
                }
 
-    @torch.no_grad()
     def validation_step(self, batch, batch_nb):
         log = {}
         imgs, proj_mats, depths, masks, init_depth_min, depth_interval = \
