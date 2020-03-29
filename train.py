@@ -1,4 +1,4 @@
-import os
+import os, sys
 from opt import get_opts
 import torch
 
@@ -26,8 +26,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TestTubeLogger
-
-torch.backends.cudnn.benchmark = True # this increases training speed by 5x
 
 class MVSSystem(pl.LightningModule):
     def __init__(self, hparams):
@@ -62,14 +60,15 @@ class MVSSystem(pl.LightningModule):
         masks = batch['masks']
         init_depth_min = batch['init_depth_min']
         depth_interval = batch['depth_interval']
-        return imgs, proj_mats, depths, masks, init_depth_min, depth_interval
+        scan, ref_view = batch['scan_vid']
+        return imgs, proj_mats, depths, masks, init_depth_min, depth_interval, scan, ref_view
 
     def forward(self, imgs, proj_mats, init_depth_min, depth_interval):
         return self.model(imgs, proj_mats, init_depth_min, depth_interval)
 
     def training_step(self, batch, batch_nb):
         log = {'lr': get_learning_rate(self.optimizer)}
-        imgs, proj_mats, depths, masks, init_depth_min, depth_interval = \
+        imgs, proj_mats, depths, masks, init_depth_min, depth_interval, scan, ref_view = \
             self.decode_batch(batch)
         results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
         log['train/loss'] = loss = self.loss(results, depths, masks)
@@ -100,7 +99,7 @@ class MVSSystem(pl.LightningModule):
     @torch.no_grad()
     def validation_step(self, batch, batch_nb):
         log = {}
-        imgs, proj_mats, depths, masks, init_depth_min, depth_interval = \
+        imgs, proj_mats, depths, masks, init_depth_min, depth_interval, scan, ref_view = \
             self.decode_batch(batch)
         results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
         log['val_loss'] = self.loss(results, depths, masks)
@@ -206,9 +205,11 @@ if __name__ == '__main__':
                       logger=logger,
                       early_stop_callback=None,
                       weights_summary=None,
+                      progress_bar_refresh_rate=1,
                       gpus=hparams.num_gpus,
                       distributed_backend='ddp' if hparams.num_gpus>1 else None,
                       num_sanity_val_steps=0 if hparams.num_gpus>1 else 5,
+                      benchmark=True,
                       use_amp=hparams.use_amp,
                       amp_level='O1')
 

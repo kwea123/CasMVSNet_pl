@@ -40,7 +40,7 @@ def get_depth_values(current_depth, n_depths, depth_interval):
     """
     if not isinstance(depth_interval, float):
         depth_interval = depth_interval.reshape(-1, 1, 1, 1)
-    depth_min = current_depth - n_depths/2 * depth_interval
+    depth_min = torch.clamp_min(current_depth - n_depths/2 * depth_interval, 1e-7)
     depth_values = depth_min + depth_interval * \
                    torch.arange(0, n_depths,
                                 device=current_depth.device,
@@ -71,7 +71,14 @@ def homo_warp(src_feat, proj_mat, depth_values):
     ref_grid_d = ref_grid.repeat(1, 1, D) # (B, 3, D*H*W)
     src_grid_d = R @ ref_grid_d + T/depth_values.view(B, 1, D*H*W)
     del ref_grid_d, ref_grid, proj_mat, R, T, depth_values # release (GPU) memory
-    src_grid = src_grid_d[:, :2] / src_grid_d[:, -1:] # divide by depth (B, 2, D*H*W)
+    
+    # project negative depth pixels to somewhere outside the image
+    negative_depth_mask = src_grid_d[:, 2:] <= 1e-7
+    src_grid_d[:, 0:1][negative_depth_mask] = W
+    src_grid_d[:, 1:2][negative_depth_mask] = H
+    src_grid_d[:, 2:3][negative_depth_mask] = 1
+
+    src_grid = src_grid_d[:, :2] / src_grid_d[:, 2:] # divide by depth (B, 2, D*H*W)
     del src_grid_d
     src_grid[:, 0] = src_grid[:, 0]/((W - 1) / 2) - 1 # scale to -1~1
     src_grid[:, 1] = src_grid[:, 1]/((H - 1) / 2) - 1 # scale to -1~1

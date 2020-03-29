@@ -91,6 +91,7 @@ class CostRegNet(nn.Module):
         conv0 = self.conv0(x)
         conv2 = self.conv2(self.conv1(conv0))
         conv4 = self.conv4(self.conv3(conv2))
+
         x = self.conv6(self.conv5(conv4))
         x = conv4 + self.conv7(x)
         del conv4
@@ -216,7 +217,7 @@ class CascadeMVSNet(nn.Module):
                     depth_values = depth_values.reshape(1, D, 1, 1).repeat(B, 1, h, w)
                 else:
                     depth_values = init_depth_min.unsqueeze(1) + \
-                                   depth_interval_l.unsqueeze(1)* \
+                                   depth_interval_l.unsqueeze(1) * \
                                    torch.arange(0, D,
                                                 device=imgs.device,
                                                 dtype=imgs.dtype).unsqueeze(0) # (B, D)
@@ -233,5 +234,6 @@ class CascadeMVSNet(nn.Module):
             del feats_l, proj_mats_l, depth_values
             results[f"depth_{l}"] = depth_l
             results[f"confidence_{l}"] = confidence_l
+            
 
         return results

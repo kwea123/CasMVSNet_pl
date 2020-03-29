@@ -189,8 +189,6 @@ class DTUDataset(Dataset):
         sample['depths'] = depths
         sample['masks'] = masks
         sample['depth_interval'] = torch.FloatTensor([self.depth_interval])
-
-        if self.img_wh is not None:
-            sample['scan_vid'] = (scan, ref_view)
+        sample['scan_vid'] = (scan, ref_view)
 
         return sample
