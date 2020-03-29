@@ -60,17 +60,47 @@ class MVSSystem(pl.LightningModule):
         masks = batch['masks']
         init_depth_min = batch['init_depth_min']
         depth_interval = batch['depth_interval']
-        scan, ref_view = batch['scan_vid']
-        return imgs, proj_mats, depths, masks, init_depth_min, depth_interval, scan, ref_view
+        return imgs, proj_mats, depths, masks, init_depth_min, depth_interval
 
     def forward(self, imgs, proj_mats, init_depth_min, depth_interval):
         return self.model(imgs, proj_mats, init_depth_min, depth_interval)
 
+    def prepare_data(self):
+        dataset = dataset_dict[self.hparams.dataset_name]
+        self.train_dataset = dataset(root_dir=self.hparams.root_dir,
+                                     split='train',
+                                     n_views=self.hparams.n_views,
+                                     levels=self.hparams.levels,
+                                     depth_interval=self.hparams.depth_interval)
+        self.val_dataset = dataset(root_dir=self.hparams.root_dir,
+                                   split='val',
+                                   n_views=self.hparams.n_views,
+                                   levels=self.hparams.levels,
+                                   depth_interval=self.hparams.depth_interval)
+
+    def configure_optimizers(self):
+        self.optimizer = get_optimizer(self.hparams, self.model)
+        scheduler = get_scheduler(self.hparams, self.optimizer)
+        
+        return [self.optimizer], [scheduler]
+
+    def train_dataloader(self):
+        return DataLoader(self.train_dataset,
+                          num_workers=4,
+                          batch_size=self.hparams.batch_size,
+                          pin_memory=True)
+
+    def val_dataloader(self):
+        return DataLoader(self.val_dataset,
+                          num_workers=4,
+                          batch_size=self.hparams.batch_size,
+                          pin_memory=True)
+    
     def training_step(self, batch, batch_nb):
         log = {'lr': get_learning_rate(self.optimizer)}
-        imgs, proj_mats, depths, masks, init_depth_min, depth_interval, scan, ref_view = \
+        imgs, proj_mats, depths, masks, init_depth_min, depth_interval = \
             self.decode_batch(batch)
-        results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
+        results = self(imgs, proj_mats, init_depth_min, depth_interval)
         log['train/loss'] = loss = self.loss(results, depths, masks)
         
         with torch.no_grad():
@@ -99,9 +129,9 @@ class MVSSystem(pl.LightningModule):
     @torch.no_grad()
     def validation_step(self, batch, batch_nb):
         log = {}
-        imgs, proj_mats, depths, masks, init_depth_min, depth_interval, scan, ref_view = \
+        imgs, proj_mats, depths, masks, init_depth_min, depth_interval = \
             self.decode_batch(batch)
-        results = self.forward(imgs, proj_mats, init_depth_min, depth_interval)
+        results = self(imgs, proj_mats, init_depth_min, depth_interval)
         log['val_loss'] = self.loss(results, depths, masks)
     
         if batch_nb == 0:
@@ -125,7 +155,7 @@ class MVSSystem(pl.LightningModule):
 
         return log
 
-    def validation_end(self, outputs):
+    def validation_epoch_end(self, outputs):
         mean_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         mask_sum = torch.stack([x['mask_sum'] for x in outputs]).sum()
         mean_abs_err = torch.stack([x['val_abs_err'] for x in outputs]).sum() / mask_sum
@@ -143,47 +173,6 @@ class MVSSystem(pl.LightningModule):
                         }
                }
 
-    def configure_optimizers(self):
-        self.optimizer = get_optimizer(self.hparams, self.model)
-        scheduler = get_scheduler(self.hparams, self.optimizer)
-        
-        return [self.optimizer], [scheduler]
-
-    def train_dataloader(self):
-        dataset = dataset_dict[self.hparams.dataset_name]
-        train_dataset = dataset(root_dir=self.hparams.root_dir,
-                                split='train',
-                                n_views=self.hparams.n_views,
-                                levels=self.hparams.levels,
-                                depth_interval=self.hparams.depth_interval)
-        if self.hparams.num_gpus > 1:
-            sampler = DistributedSampler(train_dataset)
-        else:
-            sampler = None
-        return DataLoader(train_dataset, 
-                          shuffle=(sampler is None),
-                          sampler=sampler,
-                          num_workers=4,
-                          batch_size=self.hparams.batch_size,
-                          pin_memory=True)
-
-    def val_dataloader(self):
-        dataset = dataset_dict[self.hparams.dataset_name]
-        val_dataset = dataset(root_dir=self.hparams.root_dir,
-                              split='val',
-                              n_views=self.hparams.n_views,
-                              levels=self.hparams.levels,
-                              depth_interval=self.hparams.depth_interval)
-        if self.hparams.num_gpus > 1:
-            sampler = DistributedSampler(val_dataset)
-        else:
-            sampler = None
-        return DataLoader(val_dataset, 
-                          shuffle=(sampler is None),
-                          sampler=sampler,
-                          num_workers=4,
-                          batch_size=self.hparams.batch_size,
-                          pin_memory=True)
 
 if __name__ == '__main__':
     hparams = get_opts()
@@ -210,7 +199,7 @@ if __name__ == '__main__':
                       distributed_backend='ddp' if hparams.num_gpus>1 else None,
                       num_sanity_val_steps=0 if hparams.num_gpus>1 else 5,
                       benchmark=True,
-                      use_amp=hparams.use_amp,
+                      precision=16 if hparams.use_amp else 32,
                       amp_level='O1')
 
     trainer.fit(system)
