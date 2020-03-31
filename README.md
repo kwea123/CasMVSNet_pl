@@ -30,6 +30,9 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
 # Training
 
 Please see each subsection for training on different datasets.
+Available training datasets:
+*  [DTU dataset](#dtu-dataset)
+*  [BlendedMVS](#blendedmvs)
 
 ## DTU dataset
 
