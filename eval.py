@@ -58,7 +58,7 @@ def get_opts():
                         help='min confidence for pixel to be valid')
     parser.add_argument('--min_geo_consistent', type=int, default=5,
                         help='min number of consistent views for pixel to be valid')
-    parser.add_argument('--max_ref_views', type=int, default=500,
+    parser.add_argument('--max_ref_views', type=int, default=400,
                         help='max number of ref views (to limit RAM usage)')
     parser.add_argument('--skip', type=int, default=1,
                         help='''how many points to skip when creating the point cloud.
@@ -186,52 +186,52 @@ if __name__ == "__main__":
         scans = dataset.scans
 
     # Step 1. Create depth estimation and probability for each scan
-    model = CascadeMVSNet(n_depths=args.n_depths,
-                          interval_ratios=args.interval_ratios,
-                          num_groups=args.num_groups,
-                          norm_act=ABN)
-    device = 'cpu' if args.cpu else 'cuda:0'
-    model.to(device)
-    load_ckpt(model, args.ckpt_path)
-    model.eval()
+    # model = CascadeMVSNet(n_depths=args.n_depths,
+    #                       interval_ratios=args.interval_ratios,
+    #                       num_groups=args.num_groups,
+    #                       norm_act=ABN)
+    # device = 'cpu' if args.cpu else 'cuda:0'
+    # model.to(device)
+    # load_ckpt(model, args.ckpt_path)
+    # model.eval()
 
-    depth_dir = f'results/{args.dataset_name}/depth'
-    print('Creating depth and confidence predictions...')
-    if args.scan:
-        data_range = [i for i, x in enumerate(dataset.metas) if x[0] == args.scan]
-    else:
-        data_range = range(len(dataset))
-    for i in tqdm(data_range):
-        imgs, proj_mats, init_depth_min, depth_interval, \
-            scan, vid = decode_batch(dataset[i])
+    # depth_dir = f'results/{args.dataset_name}/depth'
+    # print('Creating depth and confidence predictions...')
+    # if args.scan:
+    #     data_range = [i for i, x in enumerate(dataset.metas) if x[0] == args.scan]
+    # else:
+    #     data_range = range(len(dataset))
+    # for i in tqdm(data_range):
+    #     imgs, proj_mats, init_depth_min, depth_interval, \
+    #         scan, vid = decode_batch(dataset[i])
         
-        os.makedirs(os.path.join(depth_dir, scan), exist_ok=True)
+    #     os.makedirs(os.path.join(depth_dir, scan), exist_ok=True)
 
-        with torch.no_grad():
-            imgs = imgs.unsqueeze(0).to(device)
-            proj_mats = proj_mats.unsqueeze(0).to(device)
-            results = model(imgs, proj_mats, init_depth_min, depth_interval)
+    #     with torch.no_grad():
+    #         imgs = imgs.unsqueeze(0).to(device)
+    #         proj_mats = proj_mats.unsqueeze(0).to(device)
+    #         results = model(imgs, proj_mats, init_depth_min, depth_interval)
         
-        depth = results['depth_0'][0].cpu().numpy()
-        depth = np.nan_to_num(depth) # change nan to 0
-        proba = results['confidence_2'][0].cpu().numpy() # NOTE: this is 1/4 scale!
-        proba = np.nan_to_num(proba) # change nan to 0
-        save_pfm(os.path.join(depth_dir, f'{scan}/depth_{vid:04d}.pfm'), depth)
-        save_pfm(os.path.join(depth_dir, f'{scan}/proba_{vid:04d}.pfm'), proba)
-        if args.save_visual:
-            mi = np.min(depth[depth>0])
-            ma = np.max(depth)
-            depth = (depth-mi)/(ma-mi+1e-8)
-            depth = (255*depth).astype(np.uint8)
-            depth_img = cv2.applyColorMap(depth, cv2.COLORMAP_JET)
-            cv2.imwrite(os.path.join(depth_dir, f'{scan}/depth_visual_{vid:04d}.jpg'),
-                        depth_img)
-            cv2.imwrite(os.path.join(depth_dir, f'{scan}/proba_visual_{vid:04d}.jpg'),
-                        (255*(proba>args.conf)).astype(np.uint8))
-        del imgs, proj_mats, results
-    del model
-    torch.cuda.empty_cache()
-    ###################################################################################
+    #     depth = results['depth_0'][0].cpu().numpy()
+    #     depth = np.nan_to_num(depth) # change nan to 0
+    #     proba = results['confidence_2'][0].cpu().numpy() # NOTE: this is 1/4 scale!
+    #     proba = np.nan_to_num(proba) # change nan to 0
+    #     save_pfm(os.path.join(depth_dir, f'{scan}/depth_{vid:04d}.pfm'), depth)
+    #     save_pfm(os.path.join(depth_dir, f'{scan}/proba_{vid:04d}.pfm'), proba)
+    #     if args.save_visual:
+    #         mi = np.min(depth[depth>0])
+    #         ma = np.max(depth)
+    #         depth = (depth-mi)/(ma-mi+1e-8)
+    #         depth = (255*depth).astype(np.uint8)
+    #         depth_img = cv2.applyColorMap(depth, cv2.COLORMAP_JET)
+    #         cv2.imwrite(os.path.join(depth_dir, f'{scan}/depth_visual_{vid:04d}.jpg'),
+    #                     depth_img)
+    #         cv2.imwrite(os.path.join(depth_dir, f'{scan}/proba_visual_{vid:04d}.jpg'),
+    #                     (255*(proba>args.conf)).astype(np.uint8))
+    #     del imgs, proj_mats, results
+    # del model
+    # torch.cuda.empty_cache()
+    # ###################################################################################
 
     # Step 2. Perform depth filtering and fusion
     point_dir = f'results/{args.dataset_name}/points'
