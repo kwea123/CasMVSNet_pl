@@ -58,6 +58,8 @@ def get_opts():
                         help='min confidence for pixel to be valid')
     parser.add_argument('--min_geo_consistent', type=int, default=5,
                         help='min number of consistent views for pixel to be valid')
+    parser.add_argument('--max_ref_views', type=int, default=500,
+                        help='max number of ref views (to limit RAM usage)')
     parser.add_argument('--skip', type=int, default=1,
                         help='''how many points to skip when creating the point cloud.
                                 Larger = fewer points and smaller file size.
@@ -244,7 +246,7 @@ if __name__ == "__main__":
         # buffers storing the refined data of each ref view
         depth_refined = {}
         image_refined = {} # store image of 1/4 scale
-        for meta in tqdm(list(filter(lambda x: x[0]==scan, dataset.metas))):
+        for meta in tqdm(list(filter(lambda x: x[0]==scan, dataset.metas))[:args.max_ref_views]):
             ref_vid = meta[2]
             if ref_vid in image_refined: # not yet refined actually
                 image_ref = cv2.resize(image_refined[ref_vid], None, fx=4, fy=4)
