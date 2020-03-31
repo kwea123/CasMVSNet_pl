@@ -195,7 +195,7 @@ if __name__ == "__main__":
 
     depth_dir = f'results/{args.dataset_name}/depth'
     print('Creating depth and confidence predictions...')
-    if args.scan: # TODO: adapt scan specification to tanks and blendedmvs
+    if args.scan:
         data_range = [i for i, x in enumerate(dataset.metas) if x[0] == args.scan]
     else:
         data_range = range(len(dataset))
