@@ -101,6 +101,8 @@ Another advantage of the above scaling trick is that when applying model pretrai
 ### Pretrained model and log
 Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases).
 
+------------------------------------------------------------------------------------------------------------------------
+
 ## Some code tricks
 
 Since MVS models consumes a lot of GPU memory, it is indispensable to do some code tricks to reduce GPU memory consumption. I tried the followings:
