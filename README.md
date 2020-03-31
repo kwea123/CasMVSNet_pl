@@ -10,6 +10,7 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
 1.  Implement groupwise correlation in [Learning Inverse Depth Regression for Multi-View Stereowith Correlation Cost Volume](https://arxiv.org/abs/1912.11746). It achieves almost the same result as original variance-based cost volume, but with fewer parameters and consumes lower memory, so it is highly recommended to use (in contrast, the inverse depth sampling in that paper turns out to have no effect in my experiments, maybe because DTU is indoor dataset, and inverse depth improves outdoor dataset better). To activate, set `--num_groups 8` in training.
 2.  2020/03/06: Add [Tanks and temples](https://www.tanksandtemples.org/) [evaluation](evaluations/tanks)!
 3.  2020/03/07: Add [BlendedMVS](https://github.com/YoYo000/BlendedMVS) [evaluation](evaluations/blendedmvs)!
+4.  2020/03/31: Add [BlendedMVS](https://github.com/YoYo000/BlendedMVS) [training](#blendedmvs)!
 
 
 # Installation
@@ -29,6 +30,9 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
 # Training
 
 Please see each subsection for training on different datasets.
+Available training datasets:
+*  [DTU dataset](#dtu-dataset)
+*  [BlendedMVS](#blendedmvs)
 
 ## DTU dataset
 
@@ -59,9 +63,9 @@ See [opt.py](opt.py) for all configurations.
 ### Metrics
 The metrics are collected on the DTU val set.
 
-|           | resolution | n_views | abs_err | 1mm acc | 2mm acc    | 4mm acc    | GPU mem in GB <br> (train*/val) |
-| :---:     |  :---:     | :---:   | :---:   |  :---:  | :---:      | :---:      | :---:   |
-| Paper     |  1152x864  | 5       | N/A     | N/A     | 82.6%      | 88.8%      | 10.0 / 5.3 |
+|           | resolution | n_views | abs_err | acc_1mm  | acc_2mm   | acc_4mm    | GPU mem in GB <br> (train*/val) |
+| :---:     |  :---:     | :---:   | :---:   |  :---:   | :---:     | :---:      | :---:   |
+| Paper     |  1152x864  | 5       | N/A     | N/A      | 82.6%     | 88.8%      | 10.0 / 5.3 |
 | This repo <br> (same as paper) |  640x512   | 3       | 4.524mm | 72.33%  | 84.35%     | 90.52%     | 8.5 / 2.1 |
 | This repo <br> (gwc**) |  640x512  | 3       | **4.242mm**| **73.99%** | **85.85%** | **91.57%**    | **6.5 / 2.1** |
 
@@ -70,14 +74,32 @@ The metrics are collected on the DTU val set.
 **Gwc with `num_groups=8` with parameters `--depth_interval 2.0 --interval_ratios 1.0 2.5 5.5 --num_epochs 50`, see [update](#update) 1. This implementation aims at maintaining the concept of cascade cost volume, and build new operations to further increase the accuracy or to decrease inference time/GPU memory.
 
 ### Pretrained model and log
-Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases/tag/v1.0).
+Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases).
 The above metrics of `This repo (same as paper)` correspond to this training but the model is saved on the 10th epoch (least `val_loss` but not the best in other metrics).
 
 ------------------------------------------------------------------------------------------------------------------------
 
 ## BlendedMVS
 
-Training on [BlendedMVS](https://github.com/YoYo000/BlendedMVS) code, to be updated.
+Run
+```
+python train.py \
+   --root_dir $BLENDEDMVS_LOW_RES_DIR \
+   --num_epochs 16 --batch_size 2 \
+   --depth_interval 192.0 --n_depths 8 32 48 --interval_ratios 1.0 2.0 4.0 \
+   --optimizer adam --lr 1e-3 --lr_scheduler cosine \
+   --exp_name exp
+```
+The `--depth_interval 192.0` is the product of the coarsest `n_depth` and the coarsest `--interval_ratio`: `192.0=48x4.0`.
+
+### Some modifications w.r.t original paper
+
+Since BlendedMVS contains outdoor and indoor scenes with a large variety of depth ranges (some from 0.1 to 2 and some from 10 to 200, notice that these numbers are not absolute distance in mm, they're in some unknown units), it is difficult to evaluate the absolute accuracy (e.g. an error of 2 might be good for scenes with depth range 10 to 200, but terrible for scenes with depth range 0.1 to 2). Therefore, I decide to scale the depth ranges roughly to the same scale (about 100 to 1000). It is done [here](https://github.com/kwea123/CasMVSNet_pl/blob/cc483ce7e421329e163f965af809f62e5b0d5a35/datasets/blendedmvs.py#L98-L103). In that way, the depth ranges of **all scenes** in BlendedMVS are scaled to approximately the same as DTU (425 to 935), so we can continue to use the same metrics (acc_1mm, etc) to evaluate predicted depth maps.
+
+Another advantage of the above scaling trick is that when applying model pretrained on DTU to BlendedMVS, we can get better results since their depth range is now roughly the same; if we do without scaling, the model will yield very bad result if the original depth range is for example 0.1 to 2.
+
+### Pretrained model and log
+Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases).
 
 ## Some code tricks
 
