@@ -96,7 +96,7 @@ Since BlendedMVS contains outdoor and indoor scenes with a large variety of dept
 Another advantage of the above scaling trick is that when applying model pretrained on DTU to BlendedMVS, we can get better results since their depth range is now roughly the same; if we do without scaling, the model will yield very bad result if the original depth range is for example 0.1 to 2.
 
 ### Pretrained model and log
-(Will add later) Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases).
+Download the pretrained model and training log in [release](https://github.com/kwea123/CasMVSNet_pl/releases).
 
 ## Some code tricks
 
