@@ -10,7 +10,7 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
 1.  Implement groupwise correlation in [Learning Inverse Depth Regression for Multi-View Stereowith Correlation Cost Volume](https://arxiv.org/abs/1912.11746). It achieves almost the same result as original variance-based cost volume, but with fewer parameters and consumes lower memory, so it is highly recommended to use (in contrast, the inverse depth sampling in that paper turns out to have no effect in my experiments, maybe because DTU is indoor dataset, and inverse depth improves outdoor dataset better). To activate, set `--num_groups 8` in training.
 2.  2020/03/06: Add [Tanks and temples](https://www.tanksandtemples.org/) [evaluation](evaluations/tanks)!
 3.  2020/03/07: Add [BlendedMVS](https://github.com/YoYo000/BlendedMVS) [evaluation](evaluations/blendedmvs)!
-4.  2020/03/31: Add [BlendedMVS](https://github.com/YoYo000/BlendedMVS) training!
+4.  2020/03/31: Add [BlendedMVS](https://github.com/YoYo000/BlendedMVS) [training](#blendedmvs)!
 
 
 # Installation
