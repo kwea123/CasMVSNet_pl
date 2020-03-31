@@ -157,13 +157,13 @@ class DTUDataset(Dataset):
             if self.img_wh is None:
                 img_filename = os.path.join(self.root_dir,
                                 f'Rectified/{scan}_train/rect_{vid+1:03d}_{light_idx}_r5000.png')
+                mask_filename = os.path.join(self.root_dir,
+                                f'Depths/{scan}/depth_visual_{vid:04d}.png')
+                depth_filename = os.path.join(self.root_dir,
+                                f'Depths/{scan}/depth_map_{vid:04d}.pfm')
             else:
                 img_filename = os.path.join(self.root_dir,
                                 f'Rectified/{scan}/rect_{vid+1:03d}_{light_idx}_r5000.png')
-            mask_filename = os.path.join(self.root_dir,
-                                f'Depths/{scan}/depth_visual_{vid:04d}.png')
-            depth_filename = os.path.join(self.root_dir,
-                                f'Depths/{scan}/depth_map_{vid:04d}.pfm')
 
             img = Image.open(img_filename)
             if self.img_wh is not None:
@@ -175,8 +175,9 @@ class DTUDataset(Dataset):
 
             if i == 0:  # reference view
                 sample['init_depth_min'] = torch.FloatTensor([depth_min])
-                masks = self.read_mask(mask_filename)
-                depths = self.read_depth(depth_filename)
+                if self.img_wh is None:
+                    sample['masks'] = self.read_mask(mask_filename)
+                    sample['depths'] = self.read_depth(depth_filename)
                 ref_proj_inv = torch.inverse(proj_mat_ls)
             else:
                 proj_mats += [proj_mat_ls @ ref_proj_inv]
@@ -186,8 +187,6 @@ class DTUDataset(Dataset):
 
         sample['imgs'] = imgs
         sample['proj_mats'] = proj_mats
-        sample['depths'] = depths
-        sample['masks'] = masks
         sample['depth_interval'] = torch.FloatTensor([self.depth_interval])
         sample['scan_vid'] = (scan, ref_view)
 
