@@ -53,9 +53,6 @@ class BlendedMVSDataset(Dataset):
                     if n_views_valid < self.n_views: # skip no enough valid views
                         continue
                     src_views = [int(x) for x in line[1::2]]
-                    # scores = [float(x) for x in line[2::2]]
-                    # if scores[self.n_views-1] < 200: # if enough views, but have low score
-                    #     continue
                     self.metas += [(scan, -1, ref_view, src_views)]
 
     def build_proj_mats(self):
