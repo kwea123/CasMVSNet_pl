@@ -11,7 +11,6 @@ During evaluation, since some scenes have more than 800 views, you might need li
 
 # Qualitative evaluation
 
-### 5b08286b2775267d5b0634ba
-![teaser](../../assets/5b08286b2775267d5b0634ba.png)
+Please see [BlendedMVS_scenes](https://github.com/kwea123/BlendedMVS_scenes) for a quick lookup of various scenes.
 
 Some interesting and beautiful point clouds will be provided in [release](https://github.com/kwea123/CasMVSNet_pl/releases).
