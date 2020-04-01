@@ -2,7 +2,7 @@ from datasets import dataset_dict
 from datasets.utils import save_pfm, read_pfm
 import cv2
 import torch
-import os
+import os, shutil
 import numpy as np
 from tqdm import tqdm
 from argparse import ArgumentParser
@@ -58,7 +58,7 @@ def get_opts():
                         help='min confidence for pixel to be valid')
     parser.add_argument('--min_geo_consistent', type=int, default=5,
                         help='min number of consistent views for pixel to be valid')
-    parser.add_argument('--max_ref_views', type=int, default=400,
+    parser.add_argument('--max_ref_views', type=int, default=500,
                         help='max number of ref views (to limit RAM usage)')
     parser.add_argument('--skip', type=int, default=1,
                         help='''how many points to skip when creating the point cloud.
@@ -92,6 +92,15 @@ def read_image(dataset_name, root_dir, scan, vid):
     if dataset_name == 'blendedmvs':
         return cv2.imread(os.path.join(root_dir, scan,
                     f'blended_images/{vid:08d}.jpg'))
+
+
+def read_refined_image(dataset_name, scan, vid):
+    return cv2.imread(f'results/{dataset_name}/image_refined/{scan}/{vid:08d}.png')
+
+
+def save_refined_image(image_refined, dataset_name, scan, vid):
+    cv2.imwrite(f'results/{dataset_name}/image_refined/{scan}/{vid:08d}.png',
+                image_refined)
 
 
 def read_proj_mat(dataset_name, dataset, scan, vid):
@@ -244,16 +253,14 @@ if __name__ == "__main__":
         vs = []
         v_colors = []
         # buffers storing the refined data of each ref view
+        os.makedirs(f'results/{args.dataset_name}/image_refined/{scan}', exist_ok=True)
+        image_refined = set()
         depth_refined = {}
-        image_refined = {} # store image of 1/4 scale
         for meta in tqdm(list(filter(lambda x: x[0]==scan, dataset.metas))[:args.max_ref_views]):
             try:
                 ref_vid = meta[2]
                 if ref_vid in image_refined: # not yet refined actually
-                    if args.dataset_name == 'dtu':
-                        image_ref = image_refined[ref_vid]
-                    else:
-                        image_ref = cv2.resize(image_refined[ref_vid], None, fx=4, fy=4)
+                    image_ref = read_refined_image(args.dataset_name, scan, ref_vid)
                     depth_ref = depth_refined[ref_vid]
                 else:
                     image_ref = read_image(args.dataset_name, args.root_dir, scan, ref_vid)
@@ -274,11 +281,8 @@ if __name__ == "__main__":
                 image_src2refs = [image_ref]
                 # for each src view, check the consistency and refine depth
                 for src_vid in src_vids:
-                    if src_vid in depth_refined: # use refined data of previous runs
-                        if args.dataset_name == 'dtu':
-                            image_src = image_refined[src_vid]
-                        else:
-                            image_src = cv2.resize(image_refined[src_vid], None, fx=4, fy=4)
+                    if src_vid in image_refined: # use refined data of previous runs
+                        image_src = read_refined_image(args.dataset_name, scan, src_vid)
                         depth_src = depth_refined[src_vid]
                     else:
                         image_src = read_image(args.dataset_name, args.root_dir, scan, src_vid)
@@ -286,16 +290,12 @@ if __name__ == "__main__":
                                             interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
                         depth_src = read_pfm(f'results/{args.dataset_name}/depth/' \
                                              f'{scan}/depth_{src_vid:04d}.pfm')[0]
-                        if args.dataset_name == 'dtu':
-                            image_refined[src_vid] = image_src
-                        else:
-                            image_refined[src_vid] = cv2.resize(image_src, None, fx=1/4, fy=1/4)
                         depth_refined[src_vid] = depth_src
                     P_world2src = read_proj_mat(args.dataset_name, dataset, scan, src_vid)
                     depth_ref_reproj, mask_geo, image_src2ref = \
                         check_geo_consistency(depth_ref, P_world2ref,
-                                            depth_src, P_world2src,
-                                            image_ref, image_src, tuple(args.img_wh))
+                                              depth_src, P_world2src,
+                                              image_ref, image_src, tuple(args.img_wh))
                     depth_ref_reprojs += [depth_ref_reproj]
                     image_src2refs += [image_src2ref]
                     mask_geos += [mask_geo]
@@ -306,10 +306,8 @@ if __name__ == "__main__":
                 image_refined_ = \
                     np.sum(image_src2refs, 0)/np.expand_dims((mask_geo_sum+1), -1)
 
-                if args.dataset_name == 'dtu':
-                    image_refined[ref_vid] = image_refined_
-                else:
-                    image_refined[ref_vid] = cv2.resize(image_refined_, None, fx=1/4, fy=1/4)
+                image_refined.add(ref_vid)
+                save_refined_image(image_refined_, args.dataset_name, scan, ref_vid)
                 mask_final = mask_conf & mask_geo_final
                 
                 # create the final points
@@ -331,9 +329,10 @@ if __name__ == "__main__":
                 print(f'Skipping view {ref_vid} ...')
                 continue
 
-        # clear refined buffers
+        # clear refined buffer
         image_refined.clear()
         depth_refined.clear()
+        shutil.rmtree(f'results/{args.dataset_name}/image_refined/{scan}')
 
         # process all points in the buffers
         vs = np.ascontiguousarray(np.vstack(vs).astype(np.float32))
