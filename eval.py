@@ -247,70 +247,89 @@ if __name__ == "__main__":
         depth_refined = {}
         image_refined = {} # store image of 1/4 scale
         for meta in tqdm(list(filter(lambda x: x[0]==scan, dataset.metas))[:args.max_ref_views]):
-            ref_vid = meta[2]
-            if ref_vid in image_refined: # not yet refined actually
-                image_ref = cv2.resize(image_refined[ref_vid], None, fx=4, fy=4)
-                depth_ref = depth_refined[ref_vid]
-            else:
-                image_ref = read_image(args.dataset_name, args.root_dir, scan, ref_vid)
-                image_ref = cv2.resize(image_ref, tuple(args.img_wh),
-                                        interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
-                depth_ref = read_pfm(f'results/{args.dataset_name}/depth/' \
-                                     f'{scan}/depth_{ref_vid:04d}.pfm')[0]
-            proba_ref = read_pfm(f'results/{args.dataset_name}/depth/' \
-                                 f'{scan}/proba_{ref_vid:04d}.pfm')[0]
-            proba_ref = cv2.resize(proba_ref, None, fx=4, fy=4,
-                                   interpolation=cv2.INTER_LINEAR)
-            mask_conf = proba_ref > args.conf # confidence mask
-            P_world2ref = read_proj_mat(args.dataset_name, dataset, scan, ref_vid)
-            
-            src_vids = meta[3]
-            mask_geos = []
-            depth_ref_reprojs = [depth_ref]
-            image_src2refs = [image_ref]
-            # for each src view, check the consistency and refine depth
-            for src_vid in src_vids:
-                if src_vid in depth_refined: # use refined data of previous runs
-                    image_src = cv2.resize(image_refined[src_vid], None, fx=4, fy=4)
-                    depth_src = depth_refined[src_vid]
+            try:
+                ref_vid = meta[2]
+                if ref_vid in image_refined: # not yet refined actually
+                    if args.dataset_name == 'dtu':
+                        image_ref = image_refined[ref_vid]
+                    else:
+                        image_ref = cv2.resize(image_refined[ref_vid], None, fx=4, fy=4)
+                    depth_ref = depth_refined[ref_vid]
                 else:
-                    image_src = read_image(args.dataset_name, args.root_dir, scan, src_vid)
-                    image_src = cv2.resize(image_src, tuple(args.img_wh),
-                                        interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
-                    depth_src = read_pfm(f'results/{args.dataset_name}/depth/' \
-                                         f'{scan}/depth_{src_vid:04d}.pfm')[0]
-                    image_refined[src_vid] = cv2.resize(image_src, None, fx=1/4, fy=1/4)
-                    depth_refined[src_vid] = depth_src
-                P_world2src = read_proj_mat(args.dataset_name, dataset, scan, src_vid)
-                depth_ref_reproj, mask_geo, image_src2ref = \
-                    check_geo_consistency(depth_ref, P_world2ref,
-                                          depth_src, P_world2src,
-                                          image_ref, image_src, tuple(args.img_wh))
-                depth_ref_reprojs += [depth_ref_reproj]
-                image_src2refs += [image_src2ref]
-                mask_geos += [mask_geo]
-            mask_geo_sum = np.sum(mask_geos, 0)
-            mask_geo_final = mask_geo_sum >= args.min_geo_consistent
-            depth_refined[ref_vid] = \
-                (np.sum(depth_ref_reprojs, 0)/(mask_geo_sum+1)).astype(np.float32)
-            image_refined_ = \
-                np.sum(image_src2refs, 0)/np.expand_dims((mask_geo_sum+1), -1)
-            image_refined[ref_vid] = cv2.resize(image_refined_, None, fx=1/4, fy=1/4)
-            mask_final = mask_conf & mask_geo_final
-            
-            # create the final points
-            xy_ref = np.mgrid[:args.img_wh[1],:args.img_wh[0]][::-1]
-            xyz_ref = np.vstack((xy_ref, np.ones_like(xy_ref[:1]))) * depth_refined[ref_vid]
-            xyz_ref = xyz_ref.transpose(1,2,0)[mask_final].T # (3, N)
-            color = image_refined_[mask_final] # (N, 3)
-            xyz_ref_h = np.vstack((xyz_ref, np.ones_like(xyz_ref[:1])))
-            xyz_world = (np.linalg.inv(P_world2ref) @ xyz_ref_h).T # (N, 4)
-            xyz_world = xyz_world[::args.skip, :3]
-            color = color[::args.skip]
-            
-            # append to buffers
-            vs += [xyz_world]
-            v_colors += [color]
+                    image_ref = read_image(args.dataset_name, args.root_dir, scan, ref_vid)
+                    image_ref = cv2.resize(image_ref, tuple(args.img_wh),
+                                            interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
+                    depth_ref = read_pfm(f'results/{args.dataset_name}/depth/' \
+                                        f'{scan}/depth_{ref_vid:04d}.pfm')[0]
+                proba_ref = read_pfm(f'results/{args.dataset_name}/depth/' \
+                                     f'{scan}/proba_{ref_vid:04d}.pfm')[0]
+                proba_ref = cv2.resize(proba_ref, None, fx=4, fy=4,
+                                       interpolation=cv2.INTER_LINEAR)
+                mask_conf = proba_ref > args.conf # confidence mask
+                P_world2ref = read_proj_mat(args.dataset_name, dataset, scan, ref_vid)
+                
+                src_vids = meta[3]
+                mask_geos = []
+                depth_ref_reprojs = [depth_ref]
+                image_src2refs = [image_ref]
+                # for each src view, check the consistency and refine depth
+                for src_vid in src_vids:
+                    if src_vid in depth_refined: # use refined data of previous runs
+                        if args.dataset_name == 'dtu':
+                            image_src = image_refined[src_vid]
+                        else:
+                            image_src = cv2.resize(image_refined[src_vid], None, fx=4, fy=4)
+                        depth_src = depth_refined[src_vid]
+                    else:
+                        image_src = read_image(args.dataset_name, args.root_dir, scan, src_vid)
+                        image_src = cv2.resize(image_src, tuple(args.img_wh),
+                                            interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
+                        depth_src = read_pfm(f'results/{args.dataset_name}/depth/' \
+                                             f'{scan}/depth_{src_vid:04d}.pfm')[0]
+                        if args.dataset_name == 'dtu':
+                            image_refined[src_vid] = image_src
+                        else:
+                            image_refined[src_vid] = cv2.resize(image_src, None, fx=1/4, fy=1/4)
+                        depth_refined[src_vid] = depth_src
+                    P_world2src = read_proj_mat(args.dataset_name, dataset, scan, src_vid)
+                    depth_ref_reproj, mask_geo, image_src2ref = \
+                        check_geo_consistency(depth_ref, P_world2ref,
+                                            depth_src, P_world2src,
+                                            image_ref, image_src, tuple(args.img_wh))
+                    depth_ref_reprojs += [depth_ref_reproj]
+                    image_src2refs += [image_src2ref]
+                    mask_geos += [mask_geo]
+                mask_geo_sum = np.sum(mask_geos, 0)
+                mask_geo_final = mask_geo_sum >= args.min_geo_consistent
+                depth_refined[ref_vid] = \
+                    (np.sum(depth_ref_reprojs, 0)/(mask_geo_sum+1)).astype(np.float32)
+                image_refined_ = \
+                    np.sum(image_src2refs, 0)/np.expand_dims((mask_geo_sum+1), -1)
+
+                if args.dataset_name == 'dtu':
+                    image_refined[ref_vid] = image_refined_
+                else:
+                    image_refined[ref_vid] = cv2.resize(image_refined_, None, fx=1/4, fy=1/4)
+                mask_final = mask_conf & mask_geo_final
+                
+                # create the final points
+                xy_ref = np.mgrid[:args.img_wh[1],:args.img_wh[0]][::-1]
+                xyz_ref = np.vstack((xy_ref, np.ones_like(xy_ref[:1]))) * depth_refined[ref_vid]
+                xyz_ref = xyz_ref.transpose(1,2,0)[mask_final].T # (3, N)
+                color = image_refined_[mask_final] # (N, 3)
+                xyz_ref_h = np.vstack((xyz_ref, np.ones_like(xyz_ref[:1])))
+                xyz_world = (np.linalg.inv(P_world2ref) @ xyz_ref_h).T # (N, 4)
+                xyz_world = xyz_world[::args.skip, :3]
+                color = color[::args.skip]
+                
+                # append to buffers
+                vs += [xyz_world]
+                v_colors += [color]
+
+            except FileNotFoundError:
+                # some scenes might not have depth prediction due to too few valid src views
+                print(f'Skipping view {ref_vid} ...')
+                continue
 
         # clear refined buffers
         image_refined.clear()
