@@ -14,3 +14,16 @@ During evaluation, since some scenes have more than 800 views, you might need li
 Please see [BlendedMVS_scenes](https://github.com/kwea123/BlendedMVS_scenes) for a quick lookup of various scenes.
 
 Point clouds are provided in [release](https://github.com/kwea123/CasMVSNet_pl/releases).
+
+Some examples:
+
+### 5a618c72784780334bc1972d
+![](../../assets/5a618c72784780334bc1972d.png)
+
+### 5b558a928bbfb62204e77ba2
+![](../../assets/5b558a928bbfb62204e77ba2.png)
+
+### 57f8d9bbe73f6760f10e916a
+![](../../assets/57f8d9bbe73f6760f10e916a.png)
+
+I'm very impressed by this scene. The unevenness of the sculpture is reconstructed to a degree that it looks almost like if it were carved by a veteran artist's hand.
