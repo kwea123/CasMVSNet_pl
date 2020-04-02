@@ -58,7 +58,7 @@ def get_opts():
                         help='min confidence for pixel to be valid')
     parser.add_argument('--min_geo_consistent', type=int, default=5,
                         help='min number of consistent views for pixel to be valid')
-    parser.add_argument('--max_ref_views', type=int, default=500,
+    parser.add_argument('--max_ref_views', type=int, default=400,
                         help='max number of ref views (to limit RAM usage)')
     parser.add_argument('--skip', type=int, default=1,
                         help='''how many points to skip when creating the point cloud.
@@ -267,7 +267,7 @@ if __name__ == "__main__":
                     image_ref = cv2.resize(image_ref, tuple(args.img_wh),
                                             interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
                     depth_ref = read_pfm(f'results/{args.dataset_name}/depth/' \
-                                        f'{scan}/depth_{ref_vid:04d}.pfm')[0]
+                                         f'{scan}/depth_{ref_vid:04d}.pfm')[0]
                 proba_ref = read_pfm(f'results/{args.dataset_name}/depth/' \
                                      f'{scan}/proba_{ref_vid:04d}.pfm')[0]
                 proba_ref = cv2.resize(proba_ref, None, fx=4, fy=4,
@@ -326,7 +326,7 @@ if __name__ == "__main__":
 
             except FileNotFoundError:
                 # some scenes might not have depth prediction due to too few valid src views
-                print(f'Skipping view {ref_vid} ...')
+                print(f'Skipping view {ref_vid} due to too few valid source views...')
                 continue
 
         # clear refined buffer
@@ -337,7 +337,7 @@ if __name__ == "__main__":
         # process all points in the buffers
         vs = np.ascontiguousarray(np.vstack(vs).astype(np.float32))
         v_colors = np.vstack(v_colors).astype(np.uint8)
-        print(scan, f'contains {len(vs)/1e6:.2f} M points')
+        print(f'{scan} contains {len(vs)/1e6:.2f} M points')
         vs.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
         v_colors.dtype = [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
 
@@ -350,6 +350,6 @@ if __name__ == "__main__":
         el = PlyElement.describe(vertex_all, 'vertex')
         PlyData([el]).write(f'{point_dir}/{scan}.ply')
         del vertex_all, vs, v_colors
-
+    shutil.rmtree(f'results/{args.dataset_name}/image_refined')
 
     print('Done!')
