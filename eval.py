@@ -265,7 +265,7 @@ if __name__ == "__main__":
                 else:
                     image_ref = read_image(args.dataset_name, args.root_dir, scan, ref_vid)
                     image_ref = cv2.resize(image_ref, tuple(args.img_wh),
-                                            interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
+                                           interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
                     depth_ref = read_pfm(f'results/{args.dataset_name}/depth/' \
                                          f'{scan}/depth_{ref_vid:04d}.pfm')[0]
                 proba_ref = read_pfm(f'results/{args.dataset_name}/depth/' \
@@ -287,7 +287,7 @@ if __name__ == "__main__":
                     else:
                         image_src = read_image(args.dataset_name, args.root_dir, scan, src_vid)
                         image_src = cv2.resize(image_src, tuple(args.img_wh),
-                                            interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
+                                               interpolation=cv2.INTER_LINEAR)[:,:,::-1] # to RGB
                         depth_src = read_pfm(f'results/{args.dataset_name}/depth/' \
                                              f'{scan}/depth_{src_vid:04d}.pfm')[0]
                         depth_refined[src_vid] = depth_src

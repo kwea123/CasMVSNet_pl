@@ -19,6 +19,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     pcd = o3d.io.read_point_cloud(f"results/{args.dataset_name}/points/{args.scan}.ply")
+    print(f'{args.scan} contains {len(pcd.points)/1e6:.2f} M points')
     vis = o3d.visualization.Visualizer()
     vis.create_window()
     ctr = vis.get_view_control()
