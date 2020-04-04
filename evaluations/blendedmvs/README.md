@@ -27,3 +27,5 @@ Some examples:
 ![](../../assets/57f8d9bbe73f6760f10e916a.png)
 
 I'm very impressed by this scene. The unevenness of the sculpture is reconstructed to a degree that it looks almost like if it were carved by a veteran artist's hand.
+
+A [youtube video](https://youtu.be/-54sf5aVt4Y) showing the point cloud in interactive view.
