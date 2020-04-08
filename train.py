@@ -174,8 +174,8 @@ class MVSSystem(LightningModule):
 if __name__ == '__main__':
     hparams = get_opts()
     system = MVSSystem(hparams)
-    os.makedirs(os.path.join('ckpts', hparams.exp_name), exist_ok=True)
-    checkpoint_callback = ModelCheckpoint(filepath=os.path.join('ckpts', hparams.exp_name),
+    checkpoint_callback = ModelCheckpoint(filepath=os.path.join(f'ckpts/{hparams.exp_name}',
+                                                                '{epoch:02d}'),
                                           monitor='val/acc_2mm',
                                           mode='max',
                                           save_top_k=5,)
