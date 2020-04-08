@@ -33,14 +33,14 @@ class ConvBnReLU3D(nn.Module):
 class AttentionBranch(nn.Module):
     def __init__(self, in_channels, norm_act=InPlaceABN):
         super(AttentionBranch, self).__init__()
-        self.conv = nn.Conv3d(in_channels, 1, 1, bias=False)
-        self.bn = norm_act(1)
+        self.conv1 = ConvBnReLU3D(in_channels, 1, 1, pad=0, norm_act=norm_act)
+        self.conv2 = ConvBnReLU3D(1, 1, 1, pad=0, norm_act=norm_act)
 
     def forward(self, x):
         """
         x: (B, C, D, H, W)
         """
-        attention = self.bn(self.conv(x)) # (B, 1, D, H, W)
+        attention = self.conv2(self.conv1(x)) # (B, 1, D, H, W)
         return x * (attention+1)
 
 

@@ -213,6 +213,7 @@ if __name__ == '__main__':
                       early_stop_callback=None,
                       weights_summary=None,
                       gpus=hparams.num_gpus,
+                      progress_bar_refresh_rate=1,
                       distributed_backend='ddp' if hparams.num_gpus>1 else None,
                       num_sanity_val_steps=0 if hparams.num_gpus>1 else 5,
                       use_amp=hparams.use_amp,
