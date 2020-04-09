@@ -12,6 +12,9 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
 3.  2020/03/07: Add [BlendedMVS](https://github.com/YoYo000/BlendedMVS) [evaluation](evaluations/blendedmvs)!
 4.  2020/03/31: Add [BlendedMVS](https://github.com/YoYo000/BlendedMVS) [training](#blendedmvs)!
 
+### Known bugs
+1.  From pytorch-lightning: please set `save_top_k` to a value greater than the total epoch when using multi gpu. [#1366](https://github.com/PyTorchLightning/pytorch-lightning/issues/1366)
+
 
 # Installation
 
