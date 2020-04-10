@@ -13,8 +13,8 @@ def get_opts():
                         help='number of views (including ref) to be used in training')
     parser.add_argument('--levels', type=int, default=3, choices=[3],
                         help='number of FPN levels (fixed to be 3!)')
-    parser.add_argument('--depth_interval', type=float, default=2.8,
-                        help='depth interval unit in mm')
+    parser.add_argument('--depth_interval', type=float, default=2.65,
+                        help='depth interval for the finest level, unit in mm')
     parser.add_argument('--n_depths', nargs='+', type=int, default=[8,32,48],
                         help='number of depths in each level')
     parser.add_argument('--interval_ratios', nargs='+', type=float, default=[1.0,2.0,4.0],
@@ -27,7 +27,7 @@ def get_opts():
 
     parser.add_argument('--batch_size', type=int, default=1,
                         help='batch size')
-    parser.add_argument('--num_epochs', type=int, default=6,
+    parser.add_argument('--num_epochs', type=int, default=16,
                         help='number of training epochs')
     parser.add_argument('--num_gpus', type=int, default=1,
                         help='number of gpus')
