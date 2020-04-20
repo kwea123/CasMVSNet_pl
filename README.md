@@ -48,6 +48,7 @@ Download the preprocessed [DTU training data](https://drive.google.com/file/d/1e
 Run (example)
 ```
 python train.py \
+   --dataset_name dtu \
    --root_dir $DTU_DIR \
    --num_epochs 16 --batch_size 2 \
    --depth_interval 2.65 --n_depths 8 32 48 --interval_ratios 1.0 2.0 4.0 \
@@ -87,6 +88,7 @@ The above metrics of `This repo (same as paper)` correspond to this training but
 Run
 ```
 python train.py \
+   --dataset_name blendedmvs \
    --root_dir $BLENDEDMVS_LOW_RES_DIR \
    --num_epochs 16 --batch_size 2 \
    --depth_interval 192.0 --n_depths 8 32 48 --interval_ratios 1.0 2.0 4.0 \
