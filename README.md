@@ -123,3 +123,6 @@ For point cloud fusion from depth prediction, please go to [evaluations](evaluat
 
 A video showing the point cloud for scan9 in DTU in different angles and [me](https://github.com/kwea123/VTuber_Unity) (click to link to YouTube):
 [![teaser](assets/demo.gif)](https://youtu.be/wCjMoBR9Nh0)
+
+# TODO
+- [ ] try replacing 3d conv by [aanet](https://github.com/haofeixu/aanet/tree/master/nets)
