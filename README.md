@@ -11,7 +11,7 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
 2.  2020/03/06: Add [Tanks and temples](https://www.tanksandtemples.org/) [evaluation](evaluations/tanks)!
 3.  2020/03/07: Add [BlendedMVS](https://github.com/YoYo000/BlendedMVS) [evaluation](evaluations/blendedmvs)!
 4.  2020/03/31: Add [BlendedMVS](https://github.com/YoYo000/BlendedMVS) [training](#blendedmvs)!
-
+5.  2020/04/30: Add point cloud to mesh [guideline](#point-cloud-to-mesh)!
 
 # Installation
 
@@ -120,6 +120,10 @@ For point cloud fusion from depth prediction, please go to [evaluations](evaluat
 
 A video showing the point cloud for scan9 in DTU in different angles and [me](https://github.com/kwea123/VTuber_Unity) (click to link to YouTube):
 [![teaser](assets/demo.gif)](https://youtu.be/wCjMoBR9Nh0)
+
+## Point cloud to mesh
+
+You can follow [this great post](https://towardsdatascience.com/5-step-guide-to-generate-3d-meshes-from-point-clouds-with-python-36bad397d8ba) to convert the point cloud into mesh file. **Poisson’ reconstruction** turns out to be a good choice. Here's what I get after tuning some parameters (the parameters should be scene-dependent, so you need to experiment by yourself): ![a](https://user-images.githubusercontent.com/11364490/80682209-0ac0fc00-8afd-11ea-86c7-30ee81fc3ad1.png)
 
 # TODO
 - [ ] try replacing 3d conv by [aanet](https://github.com/haofeixu/aanet/tree/master/nets)
