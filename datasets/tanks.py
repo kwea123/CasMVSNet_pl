@@ -49,7 +49,7 @@ class TanksDataset(Dataset):
                                    'Train': 5e-3} # depth interval for each scan (hand tuned)
         elif self.split == 'advanced':
             self.scans = ['Auditorium', 'Ballroom', 'Courtroom',
-                          'Museum', 'Palace', 'Temple'][5:6]
+                          'Museum', 'Palace', 'Temple']
             self.image_sizes = {'Auditorium': (1920, 1080),
                                 'Ballroom': (1920, 1080),
                                 'Courtroom': (1920, 1080),
