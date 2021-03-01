@@ -65,7 +65,7 @@ class TanksDataset(Dataset):
         self.ref_views_per_scan = defaultdict(list)
 
         for scan in self.scans:
-            with open(os.path.join(self.root_dir, scan, 'pair.txt')) as f:
+            with open(os.path.join(self.root_dir, self.split, scan, 'pair.txt')) as f:
                 num_viewpoint = int(f.readline())
                 for _ in range(num_viewpoint):
                     ref_view = int(f.readline().rstrip())
@@ -79,7 +79,7 @@ class TanksDataset(Dataset):
             self.proj_mats[scan] = {}
             img_w, img_h = self.image_sizes[scan]
             for vid in self.ref_views_per_scan[scan]:
-                proj_mat_filename = os.path.join(self.root_dir, scan,
+                proj_mat_filename = os.path.join(self.root_dir, self.split, scan,
                                                  f'cams/{vid:08d}_cam.txt')
                 intrinsics, extrinsics, depth_min = \
                     self.read_cam_file(proj_mat_filename)
@@ -129,7 +129,7 @@ class TanksDataset(Dataset):
         imgs = []
         proj_mats = [] # record proj mats between views
         for i, vid in enumerate(view_ids):
-            img_filename = os.path.join(self.root_dir, scan, f'images/{vid:08d}.jpg')
+            img_filename = os.path.join(self.root_dir, self.split, scan, f'images/{vid:08d}.jpg')
 
             img = Image.open(img_filename)
             img = img.resize(self.img_wh, Image.BILINEAR)
