@@ -124,6 +124,3 @@ A video showing the point cloud for scan9 in DTU in different angles and [me](ht
 ## Point cloud to mesh
 
 You can follow [this great post](https://towardsdatascience.com/5-step-guide-to-generate-3d-meshes-from-point-clouds-with-python-36bad397d8ba) to convert the point cloud into mesh file. **Poisson’ reconstruction** turns out to be a good choice. Here's what I get after tuning some parameters (the parameters should be scene-dependent, so you need to experiment by yourself): ![a](https://user-images.githubusercontent.com/11364490/80682209-0ac0fc00-8afd-11ea-86c7-30ee81fc3ad1.png)
-
-# TODO
-- [ ] try replacing 3d conv by [aanet](https://github.com/haofeixu/aanet/tree/master/nets)
