@@ -1,3 +1,4 @@
+from einops import reduce, rearrange, repeat
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -130,10 +131,11 @@ class CascadeMVSNet(nn.Module):
         D = depth_values.shape[1]
 
         ref_feats, src_feats = feats[:, 0], feats[:, 1:]
-        src_feats = src_feats.permute(1, 0, 2, 3, 4) # (V-1, B, C, h, w)
-        proj_mats = proj_mats.permute(1, 0, 2, 3) # (V-1, B, 3, 4)
+        src_feats = rearrange(src_feats, 'b vm1 c h w -> vm1 b c h w') # (V-1, B, C, h, w)
+        proj_mats = rearrange(proj_mats, 'b vm1 x y -> vm1 b x y') # (V-1, B, 3, 4)
 
-        ref_volume = ref_feats.unsqueeze(2).repeat(1, 1, D, 1, 1) # (B, C, D, h, w)
+        ref_volume = rearrange(ref_feats, 'b c h w -> b c 1 h w')
+        ref_volume = repeat(ref_volume, 'b c 1 h w -> b c d h w', d=D) # (B, C, D, h, w)
         if self.G == 1:
             volume_sum = ref_volume
             volume_sq_sum = ref_volume ** 2
@@ -153,7 +155,7 @@ class CascadeMVSNet(nn.Module):
                     volume_sum += warped_volume
                     volume_sq_sum += warped_volume.pow_(2)
             else:
-                warped_volume = warped_volume.view(*ref_volume.shape)
+                warped_volume = warped_volume.view_as(ref_volume)
                 if self.training:
                     volume_sum = volume_sum + warped_volume # (B, G, C//G, D, h, w)
                 else:
@@ -165,10 +167,11 @@ class CascadeMVSNet(nn.Module):
             volume_variance = volume_sq_sum.div_(V).sub_(volume_sum.div_(V).pow_(2))
             del volume_sq_sum, volume_sum
         else:
-            volume_variance = (volume_sum*ref_volume).mean(2).div_(V-1) # (B, G, D, h, w)
+            volume_variance = reduce(volume_sum*ref_volume,
+                                     'b g c d h w -> b g d h w', 'mean').div_(V-1) # (B, G, D, h, w)
             del volume_sum, ref_volume
         
-        cost_reg = cost_reg(volume_variance).squeeze(1)
+        cost_reg = rearrange(cost_reg(volume_variance), 'b 1 d h w -> b d h w')
         prob_volume = F.softmax(cost_reg, 1) # (B, D, h, w)
         del cost_reg
         depth = depth_regression(prob_volume, depth_values)
@@ -214,21 +217,24 @@ class CascadeMVSNet(nn.Module):
                                    torch.arange(0, D,
                                                 device=imgs.device,
                                                 dtype=imgs.dtype) # (D)
-                    depth_values = depth_values.reshape(1, D, 1, 1).repeat(B, 1, h, w)
+                    depth_values = rearrange(depth_values, 'd -> 1 d 1 1')
+                    depth_values = repeat(depth_values, '1 d 1 1 -> b d h w', b=B, h=h, w=w)
                 else:
-                    depth_values = init_depth_min.unsqueeze(1) + \
-                                   depth_interval_l.unsqueeze(1) * \
-                                   torch.arange(0, D,
-                                                device=imgs.device,
-                                                dtype=imgs.dtype).unsqueeze(0) # (B, D)
-                    depth_values = depth_values.reshape(B, D, 1, 1).repeat(1, 1, h, w)
+                    depth_values = rearrange(init_depth_min, 'b -> b 1') + \
+                                   rearrange(depth_interval_l, 'b -> b 1') * \
+                                   rearrange(torch.arange(0, D,
+                                                          device=imgs.device,
+                                                          dtype=imgs.dtype),
+                                             'd -> 1 d') # (B, D)
+                    depth_values = rearrange(depth_values, 'b d -> b d 1 1')
+                    depth_values = repeat(depth_values, 'b d 1 1 -> b d h w', h=h, w=w)
             else:
-                depth_l_1 = depth_l.detach() # the depth of previous level
-                depth_l_1 = F.interpolate(depth_l_1.unsqueeze(1),
+                depth_lm1 = depth_l.detach() # the depth of previous level
+                depth_lm1 = F.interpolate(rearrange(depth_lm1, 'b h w -> b 1 h w'),
                                           scale_factor=2, mode='bilinear',
                                           align_corners=True) # (B, 1, h, w)
-                depth_values = get_depth_values(depth_l_1, D, depth_interval_l)
-                del depth_l_1
+                depth_values = get_depth_values(depth_lm1, D, depth_interval_l)
+                del depth_lm1
             depth_l, confidence_l = self.predict_depth(feats_l, proj_mats_l, depth_values,
                                                        getattr(self, f'cost_reg_{l}'))
             del feats_l, proj_mats_l, depth_values

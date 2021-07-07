@@ -4,9 +4,10 @@ pytorch-lightning==0.7.5
 kornia==0.2.0
 opencv-python==4.1.2.30
 jupyter
-test-tube
+test-tube==0.7.5
+einops==0.3.0
 
 # for point cloud visualization
-plyfile
-open3d
-numba
+plyfile==0.7.4
+open3d==0.13.0
+numba==0.53.1

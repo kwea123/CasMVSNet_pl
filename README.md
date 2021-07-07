@@ -22,10 +22,10 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
 
 ## Software
 
-* Python>=3.6.1 (installation via [anaconda](https://www.anaconda.com/distribution/) is recommended, use `conda create -n casmvsnet_pl python=3.6` to create a conda environment and activate it by `conda activate casmvsnet_pl`)
+* Python>=3.7 (installation via [anaconda](https://www.anaconda.com/distribution/) is recommended, use `conda create -n casmvsnet_pl python=3.7` to create a conda environment and activate it by `conda activate casmvsnet_pl`)
 * Python libraries
     * Install core requirements by `pip install -r requirements.txt`
-    * Install [Inplace-ABN](https://github.com/mapillary/inplace_abn) by `pip install git+https://github.com/mapillary/inplace_abn.git@v1.0.11`
+    * Install [Inplace-ABN](https://github.com/mapillary/inplace_abn) by `pip install inplace-abn`
 
 # Training
 
