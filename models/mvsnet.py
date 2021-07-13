@@ -220,8 +220,7 @@ class CascadeMVSNet(nn.Module):
                     depth_values = rearrange(depth_values, 'd -> 1 d 1 1')
                     depth_values = repeat(depth_values, '1 d 1 1 -> b d h w', b=B, h=h, w=w)
                 else:
-                    depth_values = rearrange(init_depth_min, 'b -> b 1') + \
-                                   rearrange(depth_interval_l, 'b -> b 1') * \
+                    depth_values = init_depth_min + depth_interval_l * \
                                    rearrange(torch.arange(0, D,
                                                           device=imgs.device,
                                                           dtype=imgs.dtype),

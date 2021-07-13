@@ -36,11 +36,11 @@ def get_depth_values(current_depth, n_depths, depth_interval):
     get the depth values of each pixel : [depth_min, depth_max) step is depth_interval
     current_depth: (B, 1, H, W), current depth map
     n_depth: int, number of channels of depth
-    depth_interval: (B) or float, interval between each depth channel
+    depth_interval: (B, 1) or float, interval between each depth channel
     return: (B, D, H, W)
     """
     if not isinstance(depth_interval, float):
-        depth_interval = rearrange(depth_interval, 'b -> b 1 1 1')
+        depth_interval = rearrange(depth_interval, 'b 1 -> b 1 1 1')
     depth_min = torch.clamp_min(current_depth - n_depths/2 * depth_interval, 1e-7)
     depth_values = depth_min + depth_interval * \
                    rearrange(torch.arange(0, n_depths,
