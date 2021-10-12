@@ -2,7 +2,7 @@ torch==1.4.0
 torchvision==0.5.0
 pytorch-lightning==0.7.5
 kornia==0.2.0
-opencv-python==4.1.2.30
+opencv-python==4.2.0.32
 jupyter
 test-tube==0.7.5
 einops==0.3.0
