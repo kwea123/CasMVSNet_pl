@@ -23,33 +23,33 @@ from metrics import *
 # pytorch-lightning
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.logging import TestTubeLogger
+from pytorch_lightning.loggers import TensorBoardLogger
 
 class MVSSystem(LightningModule):
     def __init__(self, hparams):
         super(MVSSystem, self).__init__()
-        self.hparams = hparams
+        self.hp = hparams
         # to unnormalize image for visualization
         self.unpreprocess = T.Normalize(mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225], 
                                         std=[1/0.229, 1/0.224, 1/0.225])
 
-        self.loss = loss_dict[hparams.loss_type](hparams.levels)
+        self.loss = loss_dict[self.hp.loss_type](self.hp.levels)
 
-        self.model = CascadeMVSNet(n_depths=self.hparams.n_depths,
-                                   interval_ratios=self.hparams.interval_ratios,
-                                   num_groups=self.hparams.num_groups,
+        self.model = CascadeMVSNet(n_depths=self.hp.n_depths,
+                                   interval_ratios=self.hp.interval_ratios,
+                                   num_groups=self.hp.num_groups,
                                    norm_act=InPlaceABN)
 
         # if num gpu is 1, print model structure and number of params
-        if self.hparams.num_gpus == 1:
+        if self.hp.num_gpus == 1:
             # print(self.model)
             print('number of parameters : %.2f M' % 
                   (sum(p.numel() for p in self.model.parameters() if p.requires_grad) / 1e6))
         
         # load model if checkpoint path is provided
-        if self.hparams.ckpt_path != '':
-            print('Load model from', self.hparams.ckpt_path)
-            load_ckpt(self.model, self.hparams.ckpt_path, self.hparams.prefixes_to_ignore)
+        if self.hp.ckpt_path != '':
+            print('Load model from', self.hp.ckpt_path)
+            load_ckpt(self.model, self.hp.ckpt_path, self.hp.prefixes_to_ignore)
 
     def decode_batch(self, batch):
         imgs = batch['imgs']
@@ -64,21 +64,21 @@ class MVSSystem(LightningModule):
         return self.model(imgs, proj_mats, init_depth_min, depth_interval)
 
     def prepare_data(self):
-        dataset = dataset_dict[self.hparams.dataset_name]
-        self.train_dataset = dataset(root_dir=self.hparams.root_dir,
+        dataset = dataset_dict[self.hp.dataset_name]
+        self.train_dataset = dataset(root_dir=self.hp.root_dir,
                                      split='train',
-                                     n_views=self.hparams.n_views,
-                                     levels=self.hparams.levels,
-                                     depth_interval=self.hparams.depth_interval)
-        self.val_dataset = dataset(root_dir=self.hparams.root_dir,
+                                     n_views=self.hp.n_views,
+                                     levels=self.hp.levels,
+                                     depth_interval=self.hp.depth_interval)
+        self.val_dataset = dataset(root_dir=self.hp.root_dir,
                                    split='val',
-                                   n_views=self.hparams.n_views,
-                                   levels=self.hparams.levels,
-                                   depth_interval=self.hparams.depth_interval)
+                                   n_views=self.hp.n_views,
+                                   levels=self.hp.levels,
+                                   depth_interval=self.hp.depth_interval)
 
     def configure_optimizers(self):
-        self.optimizer = get_optimizer(self.hparams, self.model)
-        scheduler = get_scheduler(self.hparams, self.optimizer)
+        self.optimizer = get_optimizer(self.hp, self.model)
+        scheduler = get_scheduler(self.hp, self.optimizer)
         
         return [self.optimizer], [scheduler]
 
@@ -86,14 +86,14 @@ class MVSSystem(LightningModule):
         return DataLoader(self.train_dataset,
                           shuffle=True,
                           num_workers=4,
-                          batch_size=self.hparams.batch_size,
+                          batch_size=self.hp.batch_size,
                           pin_memory=True)
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset,
                           shuffle=False,
                           num_workers=4,
-                          batch_size=self.hparams.batch_size,
+                          batch_size=self.hp.batch_size,
                           pin_memory=True)
     
     def training_step(self, batch, batch_nb):
@@ -176,30 +176,22 @@ class MVSSystem(LightningModule):
 if __name__ == '__main__':
     hparams = get_opts()
     system = MVSSystem(hparams)
-    checkpoint_callback = ModelCheckpoint(filepath=os.path.join(f'ckpts/{hparams.exp_name}',
+    checkpoint_callback = ModelCheckpoint(filename=os.path.join(f'ckpts/{hparams.exp_name}',
                                                                 '{epoch:02d}'),
                                           monitor='val/acc_2mm',
                                           mode='max',
-                                          save_top_k=5,)
+                                          save_top_k=5)
 
-    logger = TestTubeLogger(
+    logger = TensorBoardLogger(
         save_dir="logs",
-        name=hparams.exp_name,
-        debug=False,
-        create_git_tag=False
+        name=hparams.exp_name
     )
 
     trainer = Trainer(max_epochs=hparams.num_epochs,
-                      checkpoint_callback=checkpoint_callback,
                       logger=logger,
-                      early_stop_callback=None,
-                      weights_summary=None,
-                      progress_bar_refresh_rate=1,
                       gpus=hparams.num_gpus,
-                      distributed_backend='ddp' if hparams.num_gpus>1 else None,
                       num_sanity_val_steps=0 if hparams.num_gpus>1 else 5,
                       benchmark=True,
-                      precision=16 if hparams.use_amp else 32,
-                      amp_level='O1')
+                      precision=16 if hparams.use_amp else 32)
 
     trainer.fit(system)
