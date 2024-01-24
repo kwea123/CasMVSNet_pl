@@ -152,7 +152,7 @@ class CascadeMVSNet(nn.Module):
                     volume_sum = volume_sum + warped_volume
                     volume_sq_sum = volume_sq_sum + warped_volume ** 2
                 else:
-                    volume_sum += warped_volume
+                    volume_sum = volume_sum +  warped_volume
                     volume_sq_sum += warped_volume.pow_(2)
             else:
                 warped_volume = warped_volume.view_as(ref_volume)

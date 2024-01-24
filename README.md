@@ -17,12 +17,12 @@ Reference MVSNet implementation: [MVSNet_pl](https://github.com/kwea123/MVSNet_p
 
 ## Hardware
 
-* OS: Ubuntu 16.04 or 18.04
-* NVIDIA GPU with **CUDA>=10.0** (tested with 1 RTX 2080Ti)
+* OS: Ubuntu 20.04
+* NVIDIA GPU with **CUDA>=11.6** (tested with 1,2 RTX 2080Ti)
 
 ## Software
 
-* Python==3.7 (installation via [anaconda](https://www.anaconda.com/distribution/) is recommended, use `conda create -n casmvsnet_pl python=3.7` to create a conda environment and activate it by `conda activate casmvsnet_pl`)
+* Python>=3.7 (installation via [anaconda](https://www.anaconda.com/distribution/) is recommended, use `conda create -n casmvsnet_pl python=3.7` to create a conda environment and activate it by `conda activate casmvsnet_pl`)
 * Python libraries
     * Install core requirements by `pip install -r requirements.txt`
     * Install [Inplace-ABN](https://github.com/mapillary/inplace_abn) by `pip install inplace-abn`
